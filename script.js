@@ -1,3 +1,29 @@
+let HUB_PASSWORD = localStorage.getItem('hub_access_token') || '';
+
+async function apiFetch(url, options = {}) {
+    if (!options.headers) options.headers = {};
+    options.headers['Authorization'] = HUB_PASSWORD;
+
+    const response = await fetch(url, options);
+    if (response.status === 401) {
+        localStorage.removeItem('hub_access_token');
+        checkAccess();
+        throw new Error('Unauthorized');
+    }
+    return response;
+}
+
+function checkAccess() {
+    if (!HUB_PASSWORD) {
+        const pass = prompt("Please enter HUB ACCESS PASSWORD:");
+        if (pass) {
+            HUB_PASSWORD = pass;
+            localStorage.setItem('hub_access_token', pass);
+            location.reload();
+        }
+    }
+}
+
 function updateClock() {
     const now = new Date();
     const hours = String(now.getHours()).padStart(2, '0');
@@ -121,8 +147,9 @@ if (savedTheme) {
 }
 
 async function initTimeline() {
+    checkAccess();
     try {
-        const response = await fetch('/api/incidents');
+        const response = await apiFetch('/api/incidents');
         const incidents = await response.json();
 
         const feed = document.getElementById('timeline-feed');
@@ -177,7 +204,7 @@ async function logManualIncident() {
     const picName = document.getElementById('current-pic')?.textContent || 'User';
 
     try {
-        const response = await fetch('/api/incidents', {
+        const response = await apiFetch('/api/incidents', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ content: content, assigned_to: picName })
@@ -330,7 +357,7 @@ async function copyHandover() {
     copyBtn.disabled = true;
 
     try {
-        const response = await fetch('/api/send-handover', {
+        const response = await apiFetch('/api/send-handover', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

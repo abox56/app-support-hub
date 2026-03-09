@@ -6,14 +6,27 @@ const { StringSession } = require("telegram/sessions");
 const { NewMessage } = require("telegram/events");
 
 const app = express();
-app.use(express.json()); // Support JSON bodies
+app.use(express.json());
 
 const PORT = process.env.PORT || 8000;
+const HUB_PASSWORD = process.env.HUB_PASSWORD || "Cloudway2026!";
+
+// Middleware to check for authentication
+app.use((req, res, next) => {
+    // We allow static files to be served, but gate the API data
+    if (req.path.startsWith('/api/')) {
+        const clientKey = req.headers['authorization'];
+        if (clientKey !== HUB_PASSWORD) {
+            return res.status(401).json({ error: "Unauthorized: Invalid HUB_PASSWORD" });
+        }
+    }
+    next();
+});
 
 // Telegram Configuration
-const apiId = 36039479;
-const apiHash = "cbb4b1ed8cf7605931c48a56140366d7";
-const stringSession = new StringSession(process.env.TG_SESSION || "1BQANOTEuMTA4LjU2LjE5OQG7nya/R9sdhjIWwzWavpQA/W7M+4ih/gh/rIeMQ4SqMxz+H3JYlivGtf9e6r9hgWx2J8ELw6KvbauSpwkZaNyg4fhkNjMHGYzMQbm7px4hua4eIEIFSd/7/vXsuPcZSPsTL7q1Kfo2BCgfY+nQBq9shSPXX1G6EoNHLD0zW+2DwMKx98oQLe/ea2MxbbyyIx5L+ZVclBPBv6EeNS2+5jaxgMyazx7wxbNeemd8LLlDBeiQPBHwAfPXUldZN5Z4deLnOEG53pKjY5WPm1ltOnRVJj7rQReFFp+KZ16xiP4Oscxqa7rn5gwy2ODwmZOj/Cwgra3sfelVDD3SUCMo2t4+AA==");
+const apiId = parseInt(process.env.TG_API_ID || "36039479");
+const apiHash = process.env.TG_API_HASH || "cbb4b1ed8cf7605931c48a56140366d7";
+const stringSession = new StringSession(process.env.TG_SESSION || "");
 
 let tgClient;
 
