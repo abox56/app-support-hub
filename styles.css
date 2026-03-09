@@ -74,14 +74,18 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 1.5rem 2.5rem;
+    padding: 1rem 2rem;
+    gap: 1rem;
+    flex-wrap: nowrap;
+    /* Keep it in line unless very small */
 }
 
 .header-left {
     display: flex;
     align-items: center;
-    min-width: 450px;
-    /* Keep title and clock balanced */
+    flex: 1;
+    min-width: 0;
+    /* Allow shrinking */
 }
 
 /* System Branding */
@@ -200,6 +204,8 @@ body {
 .header-center {
     display: flex;
     justify-content: center;
+    flex: 2;
+    min-width: 200px;
 }
 
 /* Center Pulse Card */
@@ -249,8 +255,10 @@ body {
     display: flex;
     align-items: center;
     gap: 1.5rem;
-    min-width: 320px;
+    flex: 1;
     justify-content: flex-end;
+    min-width: 0;
+    /* Allow shrinking */
 }
 
 .clock-info {
@@ -263,6 +271,7 @@ body {
 .clock-info.border-right {
     padding-right: 1.5rem;
     border-right: 1px solid var(--border-color);
+    white-space: nowrap;
 }
 
 .sla-health {
@@ -1298,6 +1307,128 @@ body {
 
 .settings-input:focus {
     border-color: var(--cyan);
+}
+
+/* -------------------------------------
+ * Responsive Web Design (iPad & Mobile)
+ * ------------------------------------- */
+
+/* Large Tablets / Small Desktops (iPad Pro / Small Laptop) */
+@media (max-width: 1200px) {
+    .dashboard {
+        padding: 1.5rem;
+        height: auto;
+    }
+
+    .tab-content {
+        grid-template-columns: 1fr;
+        /* Stack side panels */
+    }
+}
+
+/* Medium Tablets (iPad Mini / iPad Air) */
+@media (max-width: 1024px) {
+    .global-header {
+        flex-direction: column;
+        gap: 1.5rem;
+        padding: 1.5rem;
+    }
+
+    .header-left,
+    .header-center,
+    .header-right {
+        width: 100%;
+        justify-content: center;
+        text-align: center;
+        flex: none;
+    }
+
+    .header-left {
+        order: 1;
+    }
+
+    .header-center {
+        order: 3;
+    }
+
+    .header-right {
+        order: 2;
+        border-bottom: 1px solid var(--border-color);
+        padding-bottom: 1rem;
+    }
+
+    .clock-info.border-right {
+        border-right: none;
+        padding-right: 0;
+        align-items: center;
+    }
+
+    .matrix-grid {
+        grid-template-columns: 60px repeat(7, 1fr);
+        gap: 0.4rem;
+    }
+
+    .shift-card {
+        padding: 0.75rem 0.25rem;
+        font-size: 0.75rem;
+    }
+
+    .matrix-row-label {
+        font-size: 0.7rem;
+        padding-right: 0.5rem;
+    }
+}
+
+/* Small Tablets / Large Phones */
+@media (max-width: 768px) {
+    .dashboard {
+        padding: 1rem;
+    }
+
+    .tabs-container {
+        overflow-x: auto;
+        white-space: nowrap;
+        padding-bottom: 10px;
+    }
+
+    .tab-button {
+        padding: 0.5rem 1rem;
+        font-size: 0.9rem;
+    }
+
+    .live-status-bar {
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .matrix-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+
+    .matrix-header {
+        display: none;
+        /* Hide row of headers on very narrow screens */
+    }
+
+    .matrix-row-label {
+        border-right: none;
+        border-bottom: 1px solid var(--border-color);
+        text-align: left;
+        padding-bottom: 5px;
+        margin-bottom: 5px;
+    }
+
+    /* Inline labels for matrix cards when stacked on mobile */
+    .shift-card::before {
+        content: attr(data-day);
+        display: block;
+        font-size: 0.6rem;
+        text-transform: uppercase;
+        color: var(--text-secondary);
+        margin-bottom: 4px;
+    }
 }
 
 .settings-hint {
