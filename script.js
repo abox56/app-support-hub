@@ -381,9 +381,10 @@ async function copyHandover() {
             throw new Error(result.error);
         }
     } catch (err) {
-        console.error('Failed to send:', err);
-        copyBtn.textContent = '❌ Failed to Send';
+        console.error('❌ Detailed Handover Error:', err);
+        copyBtn.textContent = '❌ Failed (' + (err.message || 'Error') + ')';
         copyBtn.style.background = 'var(--red)';
+
         setTimeout(() => {
             copyBtn.textContent = originalText;
             copyBtn.style.background = 'var(--cyan)';
