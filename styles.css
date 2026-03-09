@@ -493,6 +493,91 @@ body {
 }
 
 /* -------------------------------------
+ * Supervision Dashboard
+ * ------------------------------------- */
+.supervision-controls {
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    margin-bottom: 2rem;
+}
+
+.supervision-stats {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.stat-pill {
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+}
+
+.stat-pill span {
+    color: var(--text-primary);
+    margin-left: 0.5rem;
+}
+
+.stat-pill[data-cat="SMI Monitoring"] {
+    border-color: var(--cyan);
+}
+
+.stat-pill[data-cat="Provider API"] {
+    border-color: var(--red);
+}
+
+.stat-pill[data-cat="Customer Support"] {
+    border-color: var(--green);
+}
+
+.stat-pill[data-cat="System Infra"] {
+    border-color: #A855F7;
+}
+
+.manual-log-entry {
+    display: flex;
+    gap: 1rem;
+}
+
+.glass-input {
+    flex: 1;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    color: var(--text-primary);
+    font-family: inherit;
+    outline: none;
+}
+
+.glass-input:focus {
+    border-color: var(--cyan);
+}
+
+.action-btn {
+    padding: 0.75rem 1.5rem;
+    background: var(--cyan);
+    color: #000;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.action-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 229, 255, 0.3);
+}
+
+/* -------------------------------------
  * Shift Matrix
  * ------------------------------------- */
 .matrix-grid {

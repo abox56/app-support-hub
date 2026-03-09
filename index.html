@@ -129,6 +129,20 @@
                             <span class="widget-value" id="handover-timer">03:42:15</span>
                         </div>
                     </div>
+
+                    <!-- Supervision Dashboard (NEW) -->
+                    <div class="supervision-controls glass">
+                        <div class="supervision-stats" id="cat-stats">
+                            <div class="stat-pill" data-cat="SMI Monitoring">SMI: <span id="stat-smi">0</span></div>
+                            <div class="stat-pill" data-cat="Provider API">Provider: <span id="stat-provider">0</span></div>
+                            <div class="stat-pill" data-cat="Customer Support">Customer: <span id="stat-customer">0</span></div>
+                            <div class="stat-pill" data-cat="System Infra">Infra: <span id="stat-infra">0</span></div>
+                        </div>
+                        <div class="manual-log-entry">
+                            <input type="text" id="manual-incident-input" placeholder="Manually log an incident (e.g. Node-B unstable...)" class="glass-input">
+                            <button onclick="logManualIncident()" class="action-btn">Log Event</button>
+                        </div>
+                    </div>
                 <!-- Shift Matrix -->
                 <section class="shift-matrix">
                     <h2 class="section-title">Shift Matrix (The Smart Rail)</h2>

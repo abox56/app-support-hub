@@ -132,7 +132,6 @@ async function initTimeline() {
         const feed = document.getElementById('timeline-feed');
         if (feed) feed.innerHTML = ''; // Clear hardcoded ones
 
-        // Display in chronological order (or reverse if prepend is used)
         incidents.forEach(ev => {
             const timeStr = new Date(ev.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             addTimelineEvent(ev.category.toLowerCase().includes('smi') ? 'info' :
@@ -141,8 +140,52 @@ async function initTimeline() {
                 timeStr,
                 ev.category);
         });
+
+        updateStatPills(incidents);
     } catch (err) {
         console.error('Failed to load incidents:', err);
+    }
+}
+
+function updateStatPills(incidents) {
+    const stats = {
+        'SMI Monitoring': 0,
+        'Provider API': 0,
+        'Customer Support': 0,
+        'System Infra': 0
+    };
+
+    incidents.forEach(inc => {
+        if (stats.hasOwnProperty(inc.category)) {
+            stats[inc.category]++;
+        }
+    });
+
+    if (document.getElementById('stat-smi')) document.getElementById('stat-smi').textContent = stats['SMI Monitoring'];
+    if (document.getElementById('stat-provider')) document.getElementById('stat-provider').textContent = stats['Provider API'];
+    if (document.getElementById('stat-customer')) document.getElementById('stat-customer').textContent = stats['Customer Support'];
+    if (document.getElementById('stat-infra')) document.getElementById('stat-infra').textContent = stats['System Infra'];
+}
+
+async function logManualIncident() {
+    const input = document.getElementById('manual-incident-input');
+    const content = input?.value.trim();
+    if (!content) return;
+
+    const picName = document.getElementById('current-pic')?.textContent || 'User';
+
+    try {
+        const response = await fetch('/api/incidents', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content: content, assigned_to: picName })
+        });
+        if (response.ok) {
+            input.value = ''; // Clear input
+            initTimeline(); // Refresh timeline and stats
+        }
+    } catch (err) {
+        console.error('Failed to log manual incident:', err);
     }
 }
 
