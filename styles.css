@@ -895,6 +895,21 @@ body {
     background: rgba(0, 229, 255, 0.1);
     border-radius: 4px;
     letter-spacing: 0.5px;
+    display: inline-block;
+    margin-bottom: 0.5rem;
+}
+
+.source-tag {
+    font-size: 0.65rem;
+    color: var(--text-secondary);
+    font-style: italic;
+    opacity: 0.8;
+}
+
+.timeline-content p {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--text-primary);
 }
 
 @keyframes slideIn {

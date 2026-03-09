@@ -1,8 +1,9 @@
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
-const { TelegramClient } = require("telegram");
+const { TelegramClient, Api } = require("telegram");
 const { StringSession } = require("telegram/sessions");
+const { NewMessage } = require("telegram/events");
 
 const app = express();
 app.use(express.json()); // Support JSON bodies
@@ -22,6 +23,41 @@ async function initTelegram() {
     });
     await tgClient.connect();
     console.log("✅ Connected to Telegram as user.");
+
+    // Passive Listener for Group Events
+    tgClient.addEventHandler(async (event) => {
+        const message = event.message;
+        if (!message || !message.text) return;
+
+        // Get Chat Details
+        const chat = await message.getChat();
+        const sender = await message.getSender();
+
+        // Only log if it's from a group or channel (not private 1v1)
+        if (chat instanceof Api.Chat || chat instanceof Api.Channel) {
+            const groupTitle = chat.title || "Unknown Group";
+            const senderName = sender ? (sender.firstName || sender.username || "Unknown") : "Unknown";
+            const content = message.text.trim();
+
+            console.log(`📩 Auto-captured from [${groupTitle}] by [${senderName}]: ${content.substring(0, 50)}...`);
+
+            // Internal log to incidents database
+            const incidents = readIncidents();
+            const newIncident = {
+                id: Date.now().toString(),
+                timestamp: new Date().toISOString(),
+                category: categorizeIncident(content),
+                content: content,
+                status: 'Captured',
+                assigned_to: 'Pending Review',
+                source: `${groupTitle} | ${senderName}`, // RECORD SOURCE
+                duration_minutes: 0
+            };
+
+            incidents.push(newIncident);
+            writeIncidents(incidents);
+        }
+    }, new NewMessage({}));
 }
 
 initTelegram();
@@ -93,6 +129,7 @@ app.post('/api/incidents', (req, res) => {
         content: content,
         status: 'Active',
         assigned_to: assigned_to || 'Unassigned',
+        source: 'Manual Input', // Default source for manual logs
         duration_minutes: 0
     };
 

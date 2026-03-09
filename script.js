@@ -138,7 +138,8 @@ async function initTimeline() {
                 ev.category.toLowerCase().includes('provider') ? 'critical' : 'success',
                 ev.content,
                 timeStr,
-                ev.category);
+                ev.category,
+                ev.source);
         });
 
         updateStatPills(incidents);
@@ -189,7 +190,7 @@ async function logManualIncident() {
     }
 }
 
-function addTimelineEvent(type, content, time, category = '') {
+function addTimelineEvent(type, content, time, category = '', source = '') {
     const feed = document.getElementById('timeline-feed');
     if (!feed) return;
 
@@ -204,7 +205,9 @@ function addTimelineEvent(type, content, time, category = '') {
     item.innerHTML = `
         <div class="timeline-time">${eventTime}</div>
         <div class="timeline-content">
-            <span class="event-tag">${category || 'OPS'}:</span> ${content}
+            <span class="event-tag">${category || 'OPS'}</span>
+            <span class="source-tag">${source ? 'via ' + source : ''}</span>
+            <p>${content}</p>
         </div>
     `;
 
