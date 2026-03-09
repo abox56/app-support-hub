@@ -86,7 +86,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     initTimeline();
     loadSettings(); // Load Telegram link
-    // Simulate new events every 2 minutes
+    // Simulate initial activity
+    setTimeout(simulateNewEvent, 5000);
+    // Continue simulation every 2 minutes
     setInterval(simulateNewEvent, 120000);
 });
 
@@ -122,17 +124,29 @@ if (savedTheme) {
     });
 }
 
-function initTimeline() {
-    const events = [
-        { type: 'info', content: 'SMI Node-B latency stabilized', time: '10:15' },
-        { type: 'success', content: 'Pragmatic Play #PP-8821 Resolved', time: '11:30' },
-        { type: 'critical', content: 'Evolution Stream alert: Packet loss', time: '14:20' }
-    ];
+async function initTimeline() {
+    try {
+        const response = await fetch('/api/incidents');
+        const incidents = await response.json();
 
-    events.forEach(ev => addTimelineEvent(ev.type, ev.content, ev.time));
+        const feed = document.getElementById('timeline-feed');
+        if (feed) feed.innerHTML = ''; // Clear hardcoded ones
+
+        // Display in chronological order (or reverse if prepend is used)
+        incidents.forEach(ev => {
+            const timeStr = new Date(ev.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            addTimelineEvent(ev.category.toLowerCase().includes('smi') ? 'info' :
+                ev.category.toLowerCase().includes('provider') ? 'critical' : 'success',
+                ev.content,
+                timeStr,
+                ev.category);
+        });
+    } catch (err) {
+        console.error('Failed to load incidents:', err);
+    }
 }
 
-function addTimelineEvent(type, content, time) {
+function addTimelineEvent(type, content, time, category = '') {
     const feed = document.getElementById('timeline-feed');
     if (!feed) return;
 
@@ -146,7 +160,9 @@ function addTimelineEvent(type, content, time) {
     item.className = `timeline-item ${type}`;
     item.innerHTML = `
         <div class="timeline-time">${eventTime}</div>
-        <div class="timeline-content">${content}</div>
+        <div class="timeline-content">
+            <span class="event-tag">${category || 'OPS'}:</span> ${content}
+        </div>
     `;
 
     feed.prepend(item);
@@ -157,20 +173,31 @@ function addTimelineEvent(type, content, time) {
     }
 }
 
-function simulateNewEvent() {
-    const types = ['info', 'success', 'critical'];
+async function simulateNewEvent() {
     const contents = [
-        'Routine heartbeat check passed',
-        'Cache cleared on secondary node',
-        'API latency spike detected',
-        'New ticket #TS-404 created',
-        'Node-A memory utilization at 85%'
+        'SMI: Node-C latency spike detected',
+        'Customer reported: Wallet sync failed for user 8829',
+        'Provider Alert: Evolution maintenance scheduled',
+        'SMI: Automatic failover to backup node successful',
+        'Database: High read load detected on master'
     ];
 
-    const randomType = types[Math.floor(Math.random() * types.length)];
     const randomContent = contents[Math.floor(Math.random() * contents.length)];
+    const picName = document.getElementById('current-pic')?.textContent || 'System';
 
-    addTimelineEvent(randomType, randomContent);
+    try {
+        const response = await fetch('/api/incidents', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content: randomContent, assigned_to: picName })
+        });
+        const newIncident = await response.json();
+
+        const timeStr = new Date(newIncident.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        addTimelineEvent('info', newIncident.content, timeStr, newIncident.category);
+    } catch (err) {
+        console.error('Failed to log simulated event:', err);
+    }
 }
 
 function filterDocs() {
