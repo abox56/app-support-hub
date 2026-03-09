@@ -86,10 +86,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     initTimeline();
     loadSettings(); // Load Telegram link
-    // Simulate initial activity
-    setTimeout(simulateNewEvent, 5000);
-    // Continue simulation every 2 minutes
-    setInterval(simulateNewEvent, 120000);
 });
 
 function openModal(modalId) {
@@ -224,33 +220,6 @@ function addTimelineEvent(type, content, time, category = '', source = '') {
     }
 }
 
-async function simulateNewEvent() {
-    const contents = [
-        'SMI: Node-C latency spike detected',
-        'Customer reported: Wallet sync failed for user 8829',
-        'Provider Alert: Evolution maintenance scheduled',
-        'SMI: Automatic failover to backup node successful',
-        'Database: High read load detected on master'
-    ];
-
-    const randomContent = contents[Math.floor(Math.random() * contents.length)];
-    const picName = document.getElementById('current-pic')?.textContent || 'System';
-
-    try {
-        const response = await fetch('/api/incidents', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ content: randomContent, assigned_to: picName })
-        });
-        const newIncident = await response.json();
-
-        const dateObj = new Date(newIncident.timestamp);
-        const timeStr = `Today ${dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-        addTimelineEvent('info', newIncident.content, timeStr, newIncident.category);
-    } catch (err) {
-        console.error('Failed to log simulated event:', err);
-    }
-}
 
 function filterDocs() {
     const query = document.getElementById('hub-search').value.toLowerCase();
