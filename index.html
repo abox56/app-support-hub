@@ -387,7 +387,7 @@
             </div>
             <div class="modal-footer">
                 <button class="modal-btn secondary" onclick="closeModal('handover-modal')">Discard</button>
-                <button class="modal-btn primary" id="copy-btn" onclick="copyHandover()">Copy to Clipboard</button>
+                <button class="modal-btn primary" id="copy-btn" onclick="copyHandover()">Send to Telegram</button>
             </div>
         </div>
     </div>
@@ -401,9 +401,9 @@
             </div>
             <div class="modal-body">
                 <div class="settings-group">
-                    <label class="settings-label">Support Telegram Link</label>
-                    <input type="text" id="tg-link-input" class="settings-input" placeholder="https://t.me/your_group_link">
-                    <p class="settings-hint">Used for one-click handover posting.</p>
+                    <label class="settings-label">Telegram Group ID / Username</label>
+                    <input type="text" id="tg-link-input" class="settings-input" placeholder="@your_group_or_id">
+                    <p class="settings-hint">Messages will be sent using your linked account. Use 'me' for Saved Messages.</p>
                 </div>
             </div>
             <div class="modal-footer">

@@ -270,38 +270,53 @@ function loadSettings() {
     // Current placeholder if any other settings are added later
 }
 
-function copyHandover() {
+async function copyHandover() {
     const text = document.getElementById('handover-text');
-    if (!text) return;
+    const copyBtn = document.getElementById('copy-btn');
+    if (!text || !copyBtn) return;
 
-    text.select();
-    text.setSelectionRange(0, 99999); // For mobile devices
+    const originalText = copyBtn.textContent;
+    const tgTarget = localStorage.getItem('hub_tg_link') || 'me'; // Default to Saved Messages if not set
+
+    copyBtn.textContent = '🚀 Sending...';
+    copyBtn.disabled = true;
 
     try {
-        navigator.clipboard.writeText(text.value);
-        const copyBtn = document.getElementById('copy-btn');
-        if (copyBtn) {
-            const originalText = copyBtn.textContent;
-            copyBtn.textContent = '✅ Copied!';
-            copyBtn.style.background = 'var(--green)';
+        const response = await fetch('/api/send-handover', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                message: text.value,
+                target: tgTarget
+            })
+        });
 
-            // Check if Telegram link exists to show "Open" button
-            const tgLink = localStorage.getItem('hub_tg_link');
-            if (tgLink) {
-                setTimeout(() => {
-                    copyBtn.textContent = 'Open Telegram';
-                    copyBtn.style.background = '#0088cc';
-                    copyBtn.onclick = () => window.open(tgLink, '_blank');
-                }, 1500);
-            } else {
-                setTimeout(() => {
-                    copyBtn.textContent = originalText;
-                    copyBtn.style.background = 'var(--cyan)';
-                }, 2000);
-            }
+        const result = await response.json();
+
+        if (result.success) {
+            copyBtn.textContent = '✅ Sent to Telegram!';
+            copyBtn.style.background = 'var(--green)';
+            setTimeout(() => {
+                copyBtn.textContent = originalText;
+                copyBtn.style.background = 'var(--cyan)';
+                copyBtn.disabled = false;
+                closeModal('handover-modal');
+            }, 2000);
+        } else {
+            throw new Error(result.error);
         }
     } catch (err) {
-        console.warn('Clipboard API failed, trying execCommand fallback...');
+        console.error('Failed to send:', err);
+        copyBtn.textContent = '❌ Failed to Send';
+        copyBtn.style.background = 'var(--red)';
+        setTimeout(() => {
+            copyBtn.textContent = originalText;
+            copyBtn.style.background = 'var(--cyan)';
+            copyBtn.disabled = false;
+        }, 3000);
+
+        // Fallback: Copy to clipboard if API fails
+        text.select();
         document.execCommand('copy');
     }
 }
