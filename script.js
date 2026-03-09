@@ -133,11 +133,16 @@ async function initTimeline() {
         if (feed) feed.innerHTML = ''; // Clear hardcoded ones
 
         incidents.forEach(ev => {
-            const timeStr = new Date(ev.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const dateObj = new Date(ev.timestamp);
+            const isToday = dateObj.toDateString() === new Date().toDateString();
+            const dateStr = isToday ? 'Today' : dateObj.toLocaleDateString([], { day: '2-digit', month: 'short' });
+            const timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const combinedTime = `${dateStr} ${timeStr}`;
+
             addTimelineEvent(ev.category.toLowerCase().includes('smi') ? 'info' :
                 ev.category.toLowerCase().includes('provider') ? 'critical' : 'success',
                 ev.content,
-                timeStr,
+                combinedTime,
                 ev.category,
                 ev.source);
         });
@@ -198,7 +203,7 @@ function addTimelineEvent(type, content, time, category = '', source = '') {
     const emptyMsg = feed.querySelector('.timeline-empty');
     if (emptyMsg) emptyMsg.remove();
 
-    const eventTime = time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const eventTime = time || "Just Now";
 
     const item = document.createElement('div');
     item.className = `timeline-item ${type}`;
@@ -213,8 +218,8 @@ function addTimelineEvent(type, content, time, category = '', source = '') {
 
     feed.prepend(item);
 
-    // Keep only last 10 events
-    if (feed.children.length > 10) {
+    // Keep a larger history for better supervision
+    if (feed.children.length > 50) {
         feed.removeChild(feed.lastChild);
     }
 }
@@ -239,7 +244,8 @@ async function simulateNewEvent() {
         });
         const newIncident = await response.json();
 
-        const timeStr = new Date(newIncident.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const dateObj = new Date(newIncident.timestamp);
+        const timeStr = `Today ${dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
         addTimelineEvent('info', newIncident.content, timeStr, newIncident.category);
     } catch (err) {
         console.error('Failed to log simulated event:', err);

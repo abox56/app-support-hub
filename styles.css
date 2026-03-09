@@ -876,7 +876,10 @@ body {
 .timeline-time {
     font-size: 0.65rem;
     color: var(--text-secondary);
-    min-width: 45px;
+    min-width: 90px;
+    white-space: nowrap;
+    text-transform: uppercase;
+    font-weight: 500;
 }
 
 .timeline-content {
