@@ -2044,3 +2044,79 @@ body {
     color: var(--brand-red);
 }
 
+/* --- Command Center Header & Status Pills --- */
+.command-center-header {
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.command-title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.core-engine-title {
+    font-family: 'Inter Tight', sans-serif;
+    font-size: 1.8rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    background: linear-gradient(135deg, #fff 0%, rgba(255,255,255,0.7) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin: 0;
+}
+
+.ai-status-pill {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    padding: 0.5rem 1.2rem;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 50px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    color: var(--text-secondary);
+    transition: all 0.3s ease;
+}
+
+.ai-status-pill.tg-status {
+    border-color: rgba(0, 229, 255, 0.2);
+}
+
+.ai-status-pill.warning {
+    border-color: rgba(255, 61, 0, 0.4);
+    background: rgba(255, 61, 0, 0.05);
+    color: var(--brand-red);
+}
+
+.pulse-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    position: relative;
+    background: #666;
+}
+
+.pulse-dot.online {
+    background: #00FF94;
+    box-shadow: 0 0 10px #00FF94;
+    animation: simplePulse 2s infinite;
+}
+
+.pulse-dot.offline {
+    background: var(--brand-red);
+    box-shadow: 0 0 10px var(--brand-red);
+}
+
+@keyframes simplePulse {
+    0% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(1.2); }
+    100% { opacity: 1; transform: scale(1); }
+}

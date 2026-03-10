@@ -135,9 +135,11 @@ document.addEventListener('DOMContentLoaded', () => {
     initRoster();
     loadSettings(); 
     checkAIStatus();
+    checkTGStatus();
 
     // Poll for new incidents every 30 seconds
     setInterval(initTimeline, 30000);
+    setInterval(checkTGStatus, 60000); // 1 min check for TG
 });
 
 async function checkAIStatus() {
@@ -151,9 +153,32 @@ async function checkAIStatus() {
                 CORE: ${data.engine}
             `;
             if (!data.active) statusPill.classList.add('warning');
+            else statusPill.classList.remove('warning');
         }
-    } catch (e) {
-        console.error("Status check failed:", e);
+    } catch (e) { console.error("AI Status check failed:", e); }
+}
+
+async function checkTGStatus() {
+    try {
+        const response = await apiFetch('/api/tg-diagnostics');
+        const data = await response.json();
+        const statusPill = document.getElementById('tg-status-bar');
+        if (statusPill) {
+            const isAlive = data.connected;
+            statusPill.innerHTML = `
+                <span class="pulse-dot ${isAlive ? 'online' : 'offline'}"></span>
+                TG LINK: ${isAlive ? 'ALIVE' : 'EXPIRED / OFFLINE'}
+            `;
+            if (!isAlive) statusPill.classList.add('warning');
+            else statusPill.classList.remove('warning');
+        }
+    } catch (e) { 
+        console.error("TG Status check failed:", e); 
+        const statusPill = document.getElementById('tg-status-bar');
+        if (statusPill) {
+            statusPill.innerHTML = `<span class="pulse-dot offline"></span> TG LINK: TIMEOUT`;
+            statusPill.classList.add('warning');
+        }
     }
 }
 
