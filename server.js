@@ -16,11 +16,13 @@ const { GoogleGenerativeAI } = require("@google/generative-ai");
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-// Database Initialization
 let db;
 (async () => {
+    // Persistent DB path for Railway volumes (e.g., /data/hub_storage.db)
+    const dbPath = process.env.DB_PATH || path.join(__dirname, 'hub_storage.db');
+    
     db = await open({
-        filename: path.join(__dirname, 'hub_storage.db'),
+        filename: dbPath,
         driver: sqlite3.Database
     });
 
@@ -50,7 +52,7 @@ let db;
             FOREIGN KEY(incident_id) REFERENCES incidents(id)
         );
     `);
-    console.log("✅ SQLite Database initialized with AI ready schema.");
+    console.log(`✅ SQLite Database initialized at: ${dbPath}`);
 })();
 
 const PORT = process.env.PORT || 8000;
@@ -123,56 +125,62 @@ async function analyzeMessageAI(content) {
 
 async function addTelegramIncident(groupTitle, senderName, content, msgId, chatId) {
     const analysis = await analyzeMessageAI(content);
-    
+    const now = new Date();
+
+    // NEW PRESERVE-ALL LOGIC: No message is discarded.
+    // Categorize into NOISE if identified, but still save for analysis.
+    let finalCategory = analysis.category;
     if (analysis.isNoise && analysis.confidence > 80) {
-        console.log(`🗑️ Noise filtered: ${content.substring(0, 30)}...`);
-        return;
+        finalCategory = "[NOISE]";
+        console.log(`📠 Silent Logging (Noise): ${content.substring(0, 30)}...`);
     }
 
-    const now = new Date();
     const WINDOW_MINUTES = 10;
     const WINDOW_AGO = new Date(now.getTime() - (WINDOW_MINUTES * 60 * 1000)).toISOString();
 
-    // Check for existing incident in the last 10 minutes from SAME group/source
+    // Clustering logic
     const cluster = await db.get(
-        `SELECT id, main_content FROM incidents 
+        `SELECT id FROM incidents 
          WHERE category = ? AND last_update > ? AND status != 'Resolved'
          ORDER BY last_update DESC LIMIT 1`,
-        [analysis.category, WINDOW_AGO]
+        [finalCategory, WINDOW_AGO]
     );
 
-    if (cluster) {
-        // AI check for semantic similarity if needed, but time-window + category is strong
-        // Update existing cluster
-        console.log(`🔗 Clustered with incident [${cluster.id}]`);
-        await db.run(
-            `INSERT INTO incident_updates (incident_id, timestamp, sender, content, msg_id, chat_id) VALUES (?, ?, ?, ?, ?, ?)`,
-            [cluster.id, now.toISOString(), senderName, content, msgId, chatId.toString()]
-        );
-        
-        // Update summary if it's the 5th message or something, or just update timestamp
-        await db.run(
-            `UPDATE incidents SET last_update = ?, status = 'In Progress' WHERE id = ?`,
-            [now.toISOString(), cluster.id]
-        );
-    } else {
-        // Create new incident
-        const id = Date.now().toString();
-        await db.run(
-            `INSERT INTO incidents (id, first_timestamp, last_update, category, main_content, ai_summary, status, assigned_to, source, duration_minutes, message_ids, engine)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [id, now.toISOString(), now.toISOString(), analysis.category, content, analysis.summary, 'Captured', 'Pending Review', groupTitle, 0, JSON.stringify([msgId]), analysis.engine]
-        );
-        await db.run(
-            `INSERT INTO incident_updates (incident_id, timestamp, sender, content, msg_id, chat_id) VALUES (?, ?, ?, ?, ?, ?)`,
-            [id, now.toISOString(), senderName, content, msgId, chatId.toString()]
-        );
-    }
+    try {
+        if (cluster) {
+            // Update existing cluster
+            await db.run(
+                `UPDATE incidents SET last_update = ?, main_content = ? WHERE id = ?`,
+                [now.toISOString(), content, cluster.id]
+            );
+            // Save detail to updates table
+            await db.run(
+                `INSERT INTO incident_updates (incident_id, timestamp, sender, content, msg_id, chat_id) VALUES (?, ?, ?, ?, ?, ?)`,
+                [cluster.id, now.toISOString(), senderName, content, msgId, chatId ? chatId.toString() : null]
+            );
+            console.log(`🔗 Clustered with incident [${cluster.id}] (${finalCategory})`);
+        } else {
+            // Create new incident (even for Noise)
+            const id = Date.now().toString();
+            await db.run(
+                `INSERT INTO incidents (id, first_timestamp, last_update, category, main_content, ai_summary, status, assigned_to, source, duration_minutes, message_ids, engine)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [id, now.toISOString(), now.toISOString(), finalCategory, content, analysis.summary || "System Capture", 'Captured', 'System', groupTitle, 0, JSON.stringify([msgId]), analysis.engine]
+            );
+            await db.run(
+                `INSERT INTO incident_updates (incident_id, timestamp, sender, content, msg_id, chat_id) VALUES (?, ?, ?, ?, ?, ?)`,
+                [id, now.toISOString(), senderName, content, msgId, chatId ? chatId.toString() : null]
+            );
+            console.log(`🆕 New Activity Created [${id}] (${finalCategory})`);
+        }
 
-    // RETENTION: Cleanup incidents older than 90 days
-    const NINETY_DAYS_AGO = new Date(now.getTime() - (90 * 24 * 60 * 60 * 1000)).toISOString();
-    await db.run(`DELETE FROM incident_updates WHERE incident_id IN (SELECT id FROM incidents WHERE last_update < ?)`, [NINETY_DAYS_AGO]);
-    await db.run(`DELETE FROM incidents WHERE last_update < ?`, [NINETY_DAYS_AGO]);
+        // RETENTION: Cleanup incidents older than 90 days
+        const NINETY_DAYS_AGO = new Date(now.getTime() - (90 * 24 * 60 * 60 * 1000)).toISOString();
+        await db.run(`DELETE FROM incident_updates WHERE incident_id IN (SELECT id FROM incidents WHERE last_update < ?)`, [NINETY_DAYS_AGO]);
+        await db.run(`DELETE FROM incidents WHERE last_update < ?`, [NINETY_DAYS_AGO]);
+    } catch (e) {
+        console.error("Database Error in addTelegramIncident:", e.message);
+    }
 }
 
 // Serve static files from the current directory
@@ -206,6 +214,11 @@ async function initTelegram() {
             if (!message || !message.text) return;
             const chat = await message.getChat();
             const sender = await message.getSender();
+            
+            // LOG EVERYTHING BEFORE FILTERING
+            const groupTitle = chat.title || "Private Chat";
+            const senderName = sender ? (sender.firstName || sender.username || "Unknown") : "Unknown";
+            console.log(`[${new Date().toLocaleTimeString()}] 📥 RAW MSG from [${groupTitle}] by [${senderName}]: ${message.text.trim().substring(0, 50)}`);
 
             if (chat instanceof Api.Chat || chat instanceof Api.Channel) {
                 const groupTitle = chat.title || "Unknown Group";
