@@ -173,36 +173,55 @@ async function addTelegramIncident(groupTitle, senderName, content, msgId, chatI
     await db.run(`DELETE FROM incidents WHERE last_update < ?`, [NINETY_DAYS_AGO]);
 }
 
-// Telegram Passive Listener
-async function initTelegram() {
-    tgClient = new TelegramClient(stringSession, apiId, apiHash, {
-        connectionRetries: 5,
-    });
-    await tgClient.connect();
-    console.log("✅ Connected to Telegram as user.");
-
-    tgClient.addEventHandler(async (event) => {
-        const message = event.message;
-        if (!message || !message.text) return;
-        const chat = await message.getChat();
-        const sender = await message.getSender();
-
-        if (chat instanceof Api.Chat || chat instanceof Api.Channel) {
-            const groupTitle = chat.title || "Unknown Group";
-            const senderName = sender ? (sender.firstName || sender.username || "Unknown") : "Unknown";
-            const content = message.text.trim();
-            const msgId = message.id;
-            const chatId = chat.id;
-            
-            console.log(`📩 Auto-captured from [${groupTitle}] by [${senderName}]: ${content.substring(0, 50)}...`);
-            await addTelegramIncident(groupTitle, senderName, content, msgId, chatId);
-        }
-    }, new NewMessage({}));
-}
-initTelegram();
-
 // Serve static files from the current directory
 app.use(express.static(path.join(__dirname)));
+
+async function initTelegram() {
+    try {
+        console.log("⏳ Initializing Telegram Connection...");
+        tgClient = new TelegramClient(stringSession, apiId, apiHash, {
+            connectionRetries: 3,
+        });
+
+        // Timeout wrapper for connection to prevent server freeze
+        const connTimeout = new Promise((_, reject) => setTimeout(() => reject(new Error("TG Connection Timeout")), 15000));
+        await Promise.race([tgClient.connect(), connTimeout]);
+        
+        console.log("✅ Connected to Telegram as user.");
+        
+        // Heartbeat for terminal/logs
+        setInterval(async () => {
+            if (tgClient && tgClient.connected) {
+                try {
+                    const me = await tgClient.getMe();
+                    console.log(`[${new Date().toLocaleTimeString()}] 💓 TG Heartbeat: @${me?.username || 'User'}`);
+                } catch(e) { console.error("Heartbeat fail:", e.message); }
+            }
+        }, 1000 * 60 * 5);
+
+        tgClient.addEventHandler(async (event) => {
+            const message = event.message;
+            if (!message || !message.text) return;
+            const chat = await message.getChat();
+            const sender = await message.getSender();
+
+            if (chat instanceof Api.Chat || chat instanceof Api.Channel) {
+                const groupTitle = chat.title || "Unknown Group";
+                const senderName = sender ? (sender.firstName || sender.username || "Unknown") : "Unknown";
+                const content = message.text.trim();
+                const msgId = message.id;
+                const chatId = chat.id;
+                
+                await addTelegramIncident(groupTitle, senderName, content, msgId, chatId);
+            }
+        }, new NewMessage({}));
+    } catch (e) {
+        console.error("❌ Telegram Client Failed to Start:", e.message);
+    }
+}
+
+// Start Telegram in background so server lives
+initTelegram();
 
 // API: AI Status
 app.get('/api/ai-status', (req, res) => {
@@ -211,6 +230,31 @@ app.get('/api/ai-status', (req, res) => {
         active: hasKey, 
         engine: hasKey ? 'Gemini 1.5 Flash' : 'Keyword Fallback' 
     });
+});
+
+// API: Telegram Diagnostics
+app.get('/api/tg-diagnostics', async (req, res) => {
+    try {
+        if (!tgClient || !tgClient.connected) {
+            return res.json({ connected: false, message: "TG Client not connected" });
+        }
+        
+        // Timeout wrapper for dialogs to prevent hanging
+        const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error("Telegram response timeout")), 10000));
+        const dialogsPromise = tgClient.getDialogs({ limit: 10 });
+        
+        const dialogs = await Promise.race([dialogsPromise, timeout]);
+        const chats = dialogs.map(d => ({
+            id: d.id.toString(),
+            title: d.title,
+            unreadCount: d.unreadCount,
+            lastMessage: d.message ? d.message.message?.substring(0, 30) + '...' : 'No msg'
+        }));
+        res.json({ connected: true, chatCount: chats.length, chats });
+    } catch (e) {
+        console.error("Diagnostic Error:", e.message);
+        res.status(500).json({ error: e.message });
+    }
 });
 
 // Simple categorization engine
