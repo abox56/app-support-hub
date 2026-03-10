@@ -130,9 +130,9 @@ function writeIncidents(data) {
 function categorizeIncident(content) {
     const text = content.toLowerCase();
     if (text.includes('smi') || text.includes('latency')) return 'SMI Monitoring';
-    if (text.includes('evolution') || text.includes('pragmatic') || text.includes('provider')) return 'Provider API';
-    if (text.includes('ticket') || text.includes('customer')) return 'Customer Support';
-    if (text.includes('database') || text.includes('db')) return 'System Infra';
+    if (text.includes('evolution') || text.includes('pragmatic') || text.includes('provider') || text.includes('mistally') || text.includes('pp-') || text.includes('evo-')) return 'Provider API';
+    if (text.includes('ticket') || text.includes('customer') || text.includes('balance') || text.includes('intally') || text.includes('missing')) return 'Customer Support';
+    if (text.includes('database') || text.includes('db') || text.includes('node-') || text.includes('unstable') || text.includes('slow')) return 'System Infra';
     return 'General Ops';
 }
 
