@@ -8,6 +8,7 @@
     "dev": "nodemon server.js"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "express": "^4.18.2",
     "input": "^1.0.1",
     "sqlite": "^5.1.1",

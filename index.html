@@ -3,13 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 App Support Hub</title>
+    <title>Command Center | Cloudway Hub</title>
+    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+    <!-- Pulse Alert Zone -->
+    <div id="pulse-alert" class="pulse-alert-zone">
+        <div class="pulse-card">
+            <div class="pulse-icon"></div>
+            <div class="pulse-text">URGENT USER SUPPORT DETECTED</div>
+        </div>
+    </div>
     <div class="dashboard">
         <!-- Global Header -->
         <header class="global-header glass">
@@ -19,7 +27,7 @@
                         <img src="https://cloudway.net/assets/icn-logo-white@2x-33fad41a.png" alt="Cloudway Logo" class="brand-logo-img">
                     </div>
                     <div class="brand-text">
-                        <span class="brand-light">APPLICATION SUPPORT HUB</span>
+                        <span class="brand-light">COMMAND CENTER</span>
                     </div>
                 </div>
             </div>
@@ -122,6 +130,20 @@
             <!-- Tab Contents -->
             <div class="tab-content active" id="ops-view">
                 <div class="center-panel">
+                    <section class="command-center-header">
+                        <div class="command-title-row">
+                            <h1 class="core-engine-title">Active Incident Engine</h1>
+                            <div class="ai-status-pill">
+                                <span class="pulse-dot"></span>
+                                AI CLASSIFIER: ACTIVE
+                            </div>
+                        </div>
+                    </section>
+
+                    <div id="incident-feed" class="incident-feed-grid">
+                        <div class="timeline-empty">Initializing AI Cluster Engine...</div>
+                    </div>
+
                     <!-- Live Status Bar -->
                     <div class="live-status-bar">
                         <div class="status-widget glass">

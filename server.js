@@ -10,6 +10,10 @@ const { open } = require('sqlite');
 const app = express();
 app.use(express.json());
 
+const { GoogleGenerativeAI } = require("@google/generative-ai");
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
 // Database Initialization
 let db;
 (async () => {
@@ -25,10 +29,12 @@ let db;
             last_update TEXT,
             category TEXT,
             main_content TEXT,
+            ai_summary TEXT,
             status TEXT,
             assigned_to TEXT,
             source TEXT,
-            duration_minutes INTEGER
+            duration_minutes INTEGER,
+            message_ids TEXT
         );
         CREATE TABLE IF NOT EXISTS incident_updates (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -36,10 +42,12 @@ let db;
             timestamp TEXT,
             sender TEXT,
             content TEXT,
+            msg_id INTEGER,
+            chat_id TEXT,
             FOREIGN KEY(incident_id) REFERENCES incidents(id)
         );
     `);
-    console.log("✅ SQLite Database initialized.");
+    console.log("✅ SQLite Database initialized with AI ready schema.");
 })();
 
 const PORT = process.env.PORT || 8000;
@@ -74,40 +82,85 @@ const apiHash = process.env.TG_API_HASH || "cbb4b1ed8cf7605931c48a56140366d7";
 const stringSession = new StringSession(process.env.TG_SESSION || "");
 
 let tgClient;
-async function addTelegramIncident(groupTitle, senderName, content) {
-    const category = categorizeIncident(content);
-    const now = new Date();
-    const TWO_HOURS_AGO = new Date(now.getTime() - (2 * 60 * 60 * 1000)).toISOString();
+async function analyzeMessageAI(content) {
+    if (!process.env.GEMINI_API_KEY) {
+        return { category: categorizeIncident(content), summary: content, isNoise: false };
+    }
 
-    // Check for existing incident in the last 2 hours
-    const existing = await db.get(
-        `SELECT id FROM incidents 
-         WHERE source = ? AND category = ? AND last_update > ? AND status != 'Resolved'
-         LIMIT 1`,
-        [groupTitle, category, TWO_HOURS_AGO]
+    const prompt = `
+    Analyze this application support message: "${content}"
+    
+    Categorize into one of these:
+    [USER_SUPPORT]: User help requests, balance issues, login problems.
+    [PROVIDER_ALERTS]: Provider maintenance, game lag, odds changes (e.g. Evolution, Pragmatic).
+    [SYSTEM_LOGS]: Server alerts, database lag, network busy.
+    [NOISE]: Greetings, irrelevant chat, emojis, single words.
+
+    Return JSON format:
+    {
+      "category": "CATEGORY_NAME",
+      "summary": "1-sentence actionable summary",
+      "isNoise": true/false,
+      "confidence": 0-100
+    }
+    `;
+
+    try {
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        const text = response.text().replace(/```json|```/g, "").trim();
+        return JSON.parse(text);
+    } catch (e) {
+        console.error("AI Analysis Failed:", e);
+        return { category: categorizeIncident(content), summary: content, isNoise: false };
+    }
+}
+
+async function addTelegramIncident(groupTitle, senderName, content, msgId, chatId) {
+    const analysis = await analyzeMessageAI(content);
+    
+    if (analysis.isNoise && analysis.confidence > 80) {
+        console.log(`🗑️ Noise filtered: ${content.substring(0, 30)}...`);
+        return;
+    }
+
+    const now = new Date();
+    const WINDOW_MINUTES = 10;
+    const WINDOW_AGO = new Date(now.getTime() - (WINDOW_MINUTES * 60 * 1000)).toISOString();
+
+    // Check for existing incident in the last 10 minutes from SAME group/source
+    const cluster = await db.get(
+        `SELECT id, main_content FROM incidents 
+         WHERE category = ? AND last_update > ? AND status != 'Resolved'
+         ORDER BY last_update DESC LIMIT 1`,
+        [analysis.category, WINDOW_AGO]
     );
 
-    if (existing) {
-        // Update existing thread
+    if (cluster) {
+        // AI check for semantic similarity if needed, but time-window + category is strong
+        // Update existing cluster
+        console.log(`🔗 Clustered with incident [${cluster.id}]`);
         await db.run(
-            `INSERT INTO incident_updates (incident_id, timestamp, sender, content) VALUES (?, ?, ?, ?)`,
-            [existing.id, now.toISOString(), senderName, content]
+            `INSERT INTO incident_updates (incident_id, timestamp, sender, content, msg_id, chat_id) VALUES (?, ?, ?, ?, ?, ?)`,
+            [cluster.id, now.toISOString(), senderName, content, msgId, chatId.toString()]
         );
+        
+        // Update summary if it's the 5th message or something, or just update timestamp
         await db.run(
             `UPDATE incidents SET last_update = ?, status = 'In Progress' WHERE id = ?`,
-            [now.toISOString(), existing.id]
+            [now.toISOString(), cluster.id]
         );
     } else {
         // Create new incident
         const id = Date.now().toString();
         await db.run(
-            `INSERT INTO incidents (id, first_timestamp, last_update, category, main_content, status, assigned_to, source, duration_minutes)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [id, now.toISOString(), now.toISOString(), category, content, 'Captured', 'Pending Review', groupTitle, 0]
+            `INSERT INTO incidents (id, first_timestamp, last_update, category, main_content, ai_summary, status, assigned_to, source, duration_minutes, message_ids)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [id, now.toISOString(), now.toISOString(), analysis.category, content, analysis.summary, 'Captured', 'Pending Review', groupTitle, 0, JSON.stringify([msgId])]
         );
         await db.run(
-            `INSERT INTO incident_updates (incident_id, timestamp, sender, content) VALUES (?, ?, ?, ?)`,
-            [id, now.toISOString(), senderName, content]
+            `INSERT INTO incident_updates (incident_id, timestamp, sender, content, msg_id, chat_id) VALUES (?, ?, ?, ?, ?, ?)`,
+            [id, now.toISOString(), senderName, content, msgId, chatId.toString()]
         );
     }
 
@@ -135,9 +188,11 @@ async function initTelegram() {
             const groupTitle = chat.title || "Unknown Group";
             const senderName = sender ? (sender.firstName || sender.username || "Unknown") : "Unknown";
             const content = message.text.trim();
+            const msgId = message.id;
+            const chatId = chat.id;
             
             console.log(`📩 Auto-captured from [${groupTitle}] by [${senderName}]: ${content.substring(0, 50)}...`);
-            await addTelegramIncident(groupTitle, senderName, content);
+            await addTelegramIncident(groupTitle, senderName, content, msgId, chatId);
         }
     }, new NewMessage({}));
 }
@@ -197,17 +252,49 @@ app.post('/api/incidents', async (req, res) => {
 
     const now = new Date();
     const id = Date.now().toString();
+    const analysis = await analyzeMessageAI(content);
+
     try {
         await db.run(
-            `INSERT INTO incidents (id, first_timestamp, last_update, category, main_content, status, assigned_to, source, duration_minutes)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [id, now.toISOString(), now.toISOString(), categorizeIncident(content), content, 'Active', assigned_to || 'Unassigned', 'Manual Input', 0]
+            `INSERT INTO incidents (id, first_timestamp, last_update, category, main_content, ai_summary, status, assigned_to, source, duration_minutes, message_ids)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [id, now.toISOString(), now.toISOString(), analysis.category, content, analysis.summary, 'Active', assigned_to || 'Unassigned', 'Manual Input', 0, "[]"]
         );
         await db.run(
             `INSERT INTO incident_updates (incident_id, timestamp, sender, content) VALUES (?, ?, ?, ?)`,
             [id, now.toISOString(), assigned_to || 'System', content]
         );
         res.json({ id, success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// API: Resolve Incident & Notify TG
+app.post('/api/resolve-incident/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        const incident = await db.get(`SELECT * FROM incidents WHERE id = ?`, [id]);
+        if (!incident) return res.status(404).json({ error: "Incident not found" });
+
+        await db.run(`UPDATE incidents SET status = 'Resolved' WHERE id = ?`, [id]);
+
+        const updates = await db.all(`SELECT DISTINCT msg_id, chat_id FROM incident_updates WHERE incident_id = ?`, [id]);
+        
+        if (tgClient && tgClient.connected) {
+            const replyMsg = `✅ *Issue Resolved* by Hub PIC.\nStatus: Normal.\nCategory: ${incident.category}`;
+            for (let update of updates) {
+                if (update.msg_id && update.chat_id) {
+                    try {
+                        await tgClient.sendMessage(update.chat_id, {
+                            message: replyMsg,
+                            replyTo: update.msg_id,
+                            parseMode: 'markdown'
+                        });
+                        break; 
+                    } catch (err) { console.error("Reply fail:", err); }
+                }
+            }
+        }
+        res.json({ success: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 

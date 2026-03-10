@@ -193,7 +193,7 @@ function updateActivePIC() {
         const shift = week.days[currentDay][rowIndex];
         const pics = [shift.Ivan, shift.Shawn, shift.DJ].filter(n => n && n !== 'Rest Day' && n !== 'AL' && n !== 'PH');
         const picElement = document.getElementById('current-pic');
-        if (picElement) picElement.textContent = pics.join(' / ') || 'None';
+        if (picElement) picElement.textContent = (pics.length > 0 ? pics.join(' / ') + ' (Active)' : 'None');
     }
 }
 
@@ -343,32 +343,87 @@ async function initTimeline() {
         const response = await apiFetch('/api/incidents');
         const incidents = await response.json();
 
-        const feed = document.getElementById('timeline-feed');
-        if (feed) feed.innerHTML = ''; // Clear hardcoded ones
+        const feed = document.getElementById('incident-feed');
+        if (feed) feed.innerHTML = ''; 
 
-        incidents.forEach(ev => {
-            const dateObj = new Date(ev.last_update || ev.first_timestamp || ev.timestamp);
-            const isToday = dateObj.toDateString() === new Date().toDateString();
-            const dateStr = isToday ? 'Today' : dateObj.toLocaleDateString([], { day: '2-digit', month: 'short' });
-            const timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            const combinedTime = `${dateStr} ${timeStr}`;
-
-            addTimelineEvent(ev.category.toLowerCase().includes('smi') ? 'info' :
-                ev.category.toLowerCase().includes('provider') ? 'critical' : 'success',
-                ev.main_content || ev.content,
-                combinedTime,
-                ev.category,
-                ev.source,
-                ev.updates); // NEW: Pass updates
+        incidents.forEach(inc => {
+            renderIncidentCard(inc);
         });
 
         updateStatPills(incidents);
-        renderAnalytics(incidents); // NEW: Render charts
+        renderAnalytics(incidents); 
+        
         const countElement = document.getElementById('active-incidents-count');
-        if (countElement) countElement.textContent = incidents.filter(i => i.status === 'Active' || i.status === 'Captured' || i.status === 'In Progress').length;
+        const activeCount = incidents.filter(i => i.status !== 'Resolved').length;
+        if (countElement) countElement.textContent = activeCount;
+
+        // Pulse Alert Logic: Check for recent [USER_SUPPORT]
+        const mostRecentUserSupport = incidents.find(i => i.category === '[USER_SUPPORT]' && i.status === 'Captured');
+        const pulseZone = document.getElementById('pulse-alert');
+        if (mostRecentUserSupport && pulseZone) {
+            pulseZone.style.display = 'block';
+        } else if (pulseZone) {
+            pulseZone.style.display = 'none';
+        }
+
     } catch (err) {
         console.error('Failed to load incidents:', err);
     }
+}
+
+function renderIncidentCard(inc) {
+    const feed = document.getElementById('incident-feed');
+    if (!feed) return;
+
+    const dateObj = new Date(inc.last_update || inc.first_timestamp);
+    const timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const isCritical = inc.category === '[PROVIDER_ALERTS]' || inc.category === '[SYSTEM_LOGS]';
+    
+    // Aggregation counter
+    const msgCount = inc.updates ? inc.updates.length : 1;
+    
+    const card = document.createElement('div');
+    card.className = `incident-card ${isCritical ? 'critical' : ''}`;
+    
+    const header = `
+        <div class="incident-card-header">
+            <span class="incident-category">${inc.category || '[GENERAL]'}</span>
+            ${msgCount > 1 ? `<span class="aggregation-counter">x${msgCount} Messages</span>` : ''}
+        </div>
+    `;
+
+    const body = `
+        <div class="incident-summary">
+            ${inc.ai_summary || inc.main_content}
+        </div>
+    `;
+
+    const footer = `
+        <div class="incident-footer">
+            <div class="incident-meta">
+                <span class="time-ago">Last update at ${timeStr}</span>
+                <span class="source-group">${inc.source || 'Direct Hub'}</span>
+            </div>
+            ${isPIC() ? `<button class="notify-btn" onclick="resolveIncident('${inc.id}')">Resolve</button>` : ''}
+        </div>
+    `;
+
+    card.innerHTML = header + body + footer;
+    feed.appendChild(card);
+}
+
+function isPIC() {
+    // Current logic: Check if the name in #current-pic includes "Active"
+    const picName = document.getElementById('current-pic')?.textContent || '';
+    return picName.includes('(Active)');
+}
+
+async function resolveIncident(id) {
+    if (!confirm('Mark incident as Resolved and Notify Telegram?')) return;
+    try {
+        await apiFetch(`/api/resolve-incident/${id}`, { method: 'POST' });
+        initTimeline();
+    } catch (e) { console.error("Resolution failed:", e); }
 }
 
 function updateStatPills(incidents) {
@@ -413,44 +468,8 @@ async function logManualIncident() {
     }
 }
 
-function addTimelineEvent(type, content, time, category = '', source = '', updates = []) {
-    const feed = document.getElementById('timeline-feed');
-    if (!feed) return;
+// Timeline events are now handled by renderIncidentCard
 
-    // Remove "empty" message if it exists
-    const emptyMsg = feed.querySelector('.timeline-empty');
-    if (emptyMsg) emptyMsg.remove();
-
-    const eventTime = time || "Just Now";
-    const updateCount = updates.length > 1 ? `<span class="update-badge">${updates.length} msgs</span>` : '';
-
-    const item = document.createElement('div');
-    item.className = `timeline-item ${type}`;
-    item.innerHTML = `
-        <div class="timeline-time">${eventTime}</div>
-        <div class="timeline-content">
-            <div class="timeline-header-row">
-                <span class="event-tag">${category || 'OPS'}</span>
-                ${updateCount}
-            </div>
-            <span class="source-tag">${source ? 'via ' + source : ''}</span>
-            <p>${content}</p>
-            ${updates.length > 1 ? `
-                <div class="thread-preview">
-                    <span class="thread-line"></span>
-                    <p class="thread-last">Last update: ${updates[updates.length-1].content.substring(0, 40)}...</p>
-                </div>
-            ` : ''}
-        </div>
-    `;
-
-    feed.prepend(item);
-
-    // Keep history
-    if (feed.children.length > 50) {
-        feed.removeChild(feed.lastChild);
-    }
-}
 
 function renderAnalytics(incidents) {
     const catContainer = document.getElementById('category-chart');
@@ -526,50 +545,37 @@ function generateHandover() {
     const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const dateStr = now.toLocaleDateString([], { day: '2-digit', month: 'short', year: 'numeric' });
 
-    // Gather Live Data from Timeline
-    const timelineItems = Array.from(document.querySelectorAll('.timeline-item')).slice(0, 5);
-    const incidents = timelineItems.map(item => {
+    // Gather Active Incidents from the Engine
+    const incidentCards = Array.from(document.querySelectorAll('.incident-card')).slice(0, 10);
+    const summaryLines = incidentCards.map(card => {
+        const category = card.querySelector('.incident-category')?.textContent || 'LOG';
+        const summary = card.querySelector('.incident-summary')?.textContent.trim();
+        const counter = card.querySelector('.aggregation-counter')?.textContent || '';
         let icon = '🔹';
-        if (item.classList.contains('critical')) icon = '🔴';
-        if (item.classList.contains('success')) icon = '✅';
-        return `${icon} ${item.querySelector('.timeline-content').textContent}`;
-    }).join('\n');
+        if (card.classList.contains('critical')) icon = '🔴';
+        return `${icon} [${category}] ${summary} ${counter}`;
+    }).slice(0, 5).join('\n');
 
-    // Gather Data from Ticketing
-    const ticketingRows = Array.from(document.querySelectorAll('.ticketing-table tbody tr')).slice(0, 3);
-    const tickets = ticketingRows.map(row => {
-        const cols = row.querySelectorAll('td');
-        const status = cols[4].textContent.trim();
-        let icon = '🔍';
-        if (status === 'Resolved' || status === 'Fixed') icon = '✅';
-        if (status === 'Pending') icon = '⏳';
-        return `${icon} ${cols[0].textContent}: ${cols[1].textContent} (${status})`;
-    }).join('\n');
-
-    const summary = `🚀 *APP SUPPORT HANDOVER* 🚀
+    const summary = `🚀 *HUB COMMAND CENTER HANDOVER* 🚀
 📅 Date: ${dateStr} | 🕒 Time: ${timeStr}
 👤 Outgoing PIC: ${picName}
 
 ---
-🔥 *RECENT INCIDENTS & UPDATES*
-${incidents || 'No major incidents reported.'}
+🔥 *ACTIVE INCIDENT ENGINE SUMMARY*
+${summaryLines || '✅ No active incidents reported.'}
 
 ---
-🎫 *TICKET STATUS*
-${tickets || 'No active tickets.'}
-
----
-📊 *SYSTEM HEALTH*
+📊 *SYSTEM STATUS*
 ✅ SLA: STABLE
-✅ Monitoring: SMI Persistent
+✅ AI Engine: ONLINE
+✅ SMI Monitoring: PERSISTENT
 
 ---
-🔗 *Quick Link:* [SMI Monitoring](https://smi.bigbull99.com)
 cc: @App_Sup_Team`;
 
     const handoverText = document.getElementById('handover-text');
     if (handoverText) {
-        handoverText.value = summary;
+        handoverText.value = summary.trim();
     }
 
     openModal('handover-modal');
