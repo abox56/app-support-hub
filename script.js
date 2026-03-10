@@ -13,6 +13,11 @@ async function apiFetch(url, options = {}) {
     return response;
 }
 
+// Immediate Access Check
+if (!HUB_PASSWORD && window.location.pathname !== '/login.html') {
+    window.location.href = '/login.html';
+}
+
 function checkAccess() {
     if (!HUB_PASSWORD) {
         if (window.location.pathname !== '/login.html') {
@@ -226,7 +231,6 @@ async function initRoster() {
 }
 
 async function initTimeline() {
-    checkAccess();
     try {
         const response = await apiFetch('/api/incidents');
         const incidents = await response.json();
