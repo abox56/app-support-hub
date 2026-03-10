@@ -108,6 +108,14 @@
                     </span>
                     <span class="tab-text">Knowledge Hub</span>
                 </button>
+                <button class="tab-button" onclick="switchTab('analytics', this)">
+                    <span class="tab-icon">
+                        <svg viewBox="0 0 24 24" fill="none" width="16" height="16">
+                            <path d="M3 3v18h18M7 17v-4m4 4v-7m4 7v-10m4 10V5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </span>
+                    <span class="tab-text">Analytics</span>
+                </button>
                 <div class="tab-indicator"></div>
             </div>
 
@@ -240,6 +248,41 @@
                         <div class="doc-card glass">
                             <div class="doc-type">HUB</div>
                             <div class="doc-name">Knowledge base connected to SharePoint</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-content" id="analytics-view">
+                <div class="analytics-container">
+                    <div class="section-header">
+                        <h2 class="section-title">Incident Analysis (3 Month Window)</h2>
+                    </div>
+                    <div class="analytics-grid">
+                        <div class="analytics-card glass">
+                            <h3>Volume by Category</h3>
+                            <div class="chart-container" id="category-chart">
+                                <!-- Styled CSS Bars -->
+                            </div>
+                        </div>
+                        <div class="analytics-card glass">
+                            <h3>Most Active Groups</h3>
+                            <div class="chart-container" id="group-chart">
+                                <!-- Styled CSS Bars -->
+                            </div>
+                        </div>
+                    </div>
+                    <div class="analytics-summary glass">
+                        <h3>Shift Efficiency</h3>
+                        <div class="efficiency-stats">
+                            <div class="eff-item">
+                                <label>Avg Response Time</label>
+                                <span id="avg-response-time">-- mins</span>
+                            </div>
+                            <div class="eff-item">
+                                <label>Detection Source</label>
+                                <span id="detection-source">Telegram (Passive)</span>
+                            </div>
                         </div>
                     </div>
                 </div>

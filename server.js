@@ -42,32 +42,58 @@ async function initTelegram() {
         const message = event.message;
         if (!message || !message.text) return;
 
-        // Get Chat Details
         const chat = await message.getChat();
         const sender = await message.getSender();
 
-        // Only log if it's from a group or channel (not private 1v1)
         if (chat instanceof Api.Chat || chat instanceof Api.Channel) {
             const groupTitle = chat.title || "Unknown Group";
             const senderName = sender ? (sender.firstName || sender.username || "Unknown") : "Unknown";
             const content = message.text.trim();
+            const category = categorizeIncident(content);
 
             console.log(`📩 Auto-captured from [${groupTitle}] by [${senderName}]: ${content.substring(0, 50)}...`);
 
-            // Internal log to incidents database
             const incidents = readIncidents();
-            const newIncident = {
-                id: Date.now().toString(),
-                timestamp: new Date().toISOString(),
-                category: categorizeIncident(content),
-                content: content,
-                status: 'Captured',
-                assigned_to: 'Pending Review',
-                source: `${groupTitle} | ${senderName}`, // RECORD SOURCE
-                duration_minutes: 0
-            };
+            const now = new Date();
+            
+            // GROUPING LOGIC: Find an incident in the same group + same category within the last 2 hours
+            const TWO_HOURS = 2 * 60 * 60 * 1000;
+            const existingIncident = incidents.find(inc => 
+                inc.source === groupTitle && 
+                inc.category === category && 
+                (now - new Date(inc.last_update)) < TWO_HOURS &&
+                inc.status !== 'Resolved'
+            );
 
-            incidents.push(newIncident);
+            if (existingIncident) {
+                // ADD TO THREAD
+                existingIncident.updates.push({
+                    timestamp: now.toISOString(),
+                    sender: senderName,
+                    content: content
+                });
+                existingIncident.last_update = now.toISOString();
+                existingIncident.status = 'In Progress'; // Auto-escalate if new message comes in
+            } else {
+                // CREATE NEW GROUPED INCIDENT
+                const newIncident = {
+                    id: Date.now().toString(),
+                    first_timestamp: now.toISOString(),
+                    last_update: now.toISOString(),
+                    category: category,
+                    main_content: content,
+                    status: 'Captured',
+                    assigned_to: 'Pending Review',
+                    source: groupTitle, // Group name
+                    updates: [{
+                        timestamp: now.toISOString(),
+                        sender: senderName,
+                        content: content
+                    }],
+                    duration_minutes: 0
+                };
+                incidents.push(newIncident);
+            }
             writeIncidents(incidents);
         }
     }, new NewMessage({}));
@@ -89,7 +115,15 @@ function readIncidents() {
 }
 
 function writeIncidents(data) {
-    fs.writeFileSync(INCIDENTS_FILE, JSON.stringify(data, null, 2));
+    // RETENTION POLICY: Keep only last 90 days (3 months)
+    const NINETY_DAYS = 90 * 24 * 60 * 60 * 1000;
+    const now = new Date();
+    const filteredData = data.filter(inc => {
+        const incDate = new Date(inc.last_update || inc.first_timestamp || inc.timestamp);
+        return (now - incDate) < NINETY_DAYS;
+    });
+
+    fs.writeFileSync(INCIDENTS_FILE, JSON.stringify(filteredData, null, 2));
 }
 
 // Simple categorization engine
@@ -129,20 +163,27 @@ app.get('/api/incidents', (req, res) => {
     res.json(readIncidents());
 });
 
-// API: Log a new incident
+// API: Log a new incident (Manual)
 app.post('/api/incidents', (req, res) => {
     const { content, assigned_to } = req.body;
     if (!content) return res.status(400).json({ error: "Content is required" });
 
     const incidents = readIncidents();
+    const now = new Date();
     const newIncident = {
         id: Date.now().toString(),
-        timestamp: new Date().toISOString(),
+        first_timestamp: now.toISOString(),
+        last_update: now.toISOString(),
         category: categorizeIncident(content),
-        content: content,
+        main_content: content,
         status: 'Active',
         assigned_to: assigned_to || 'Unassigned',
-        source: 'Manual Input', // Default source for manual logs
+        source: 'Manual Input',
+        updates: [{
+            timestamp: now.toISOString(),
+            sender: assigned_to || 'System',
+            content: content
+        }],
         duration_minutes: 0
     };
 

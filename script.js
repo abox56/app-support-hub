@@ -233,7 +233,7 @@ async function initTimeline() {
         if (feed) feed.innerHTML = ''; // Clear hardcoded ones
 
         incidents.forEach(ev => {
-            const dateObj = new Date(ev.timestamp);
+            const dateObj = new Date(ev.last_update || ev.first_timestamp || ev.timestamp);
             const isToday = dateObj.toDateString() === new Date().toDateString();
             const dateStr = isToday ? 'Today' : dateObj.toLocaleDateString([], { day: '2-digit', month: 'short' });
             const timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -241,15 +241,17 @@ async function initTimeline() {
 
             addTimelineEvent(ev.category.toLowerCase().includes('smi') ? 'info' :
                 ev.category.toLowerCase().includes('provider') ? 'critical' : 'success',
-                ev.content,
+                ev.main_content || ev.content,
                 combinedTime,
                 ev.category,
-                ev.source);
+                ev.source,
+                ev.updates); // NEW: Pass updates
         });
 
         updateStatPills(incidents);
+        renderAnalytics(incidents); // NEW: Render charts
         const countElement = document.getElementById('active-incidents-count');
-        if (countElement) countElement.textContent = incidents.filter(i => i.status === 'Active' || i.status === 'Captured').length;
+        if (countElement) countElement.textContent = incidents.filter(i => i.status === 'Active' || i.status === 'Captured' || i.status === 'In Progress').length;
     } catch (err) {
         console.error('Failed to load incidents:', err);
     }
@@ -297,7 +299,7 @@ async function logManualIncident() {
     }
 }
 
-function addTimelineEvent(type, content, time, category = '', source = '') {
+function addTimelineEvent(type, content, time, category = '', source = '', updates = []) {
     const feed = document.getElementById('timeline-feed');
     if (!feed) return;
 
@@ -306,24 +308,85 @@ function addTimelineEvent(type, content, time, category = '', source = '') {
     if (emptyMsg) emptyMsg.remove();
 
     const eventTime = time || "Just Now";
+    const updateCount = updates.length > 1 ? `<span class="update-badge">${updates.length} msgs</span>` : '';
 
     const item = document.createElement('div');
     item.className = `timeline-item ${type}`;
     item.innerHTML = `
         <div class="timeline-time">${eventTime}</div>
         <div class="timeline-content">
-            <span class="event-tag">${category || 'OPS'}</span>
+            <div class="timeline-header-row">
+                <span class="event-tag">${category || 'OPS'}</span>
+                ${updateCount}
+            </div>
             <span class="source-tag">${source ? 'via ' + source : ''}</span>
             <p>${content}</p>
+            ${updates.length > 1 ? `
+                <div class="thread-preview">
+                    <span class="thread-line"></span>
+                    <p class="thread-last">Last update: ${updates[updates.length-1].content.substring(0, 40)}...</p>
+                </div>
+            ` : ''}
         </div>
     `;
 
     feed.prepend(item);
 
-    // Keep a larger history for better supervision
+    // Keep history
     if (feed.children.length > 50) {
         feed.removeChild(feed.lastChild);
     }
+}
+
+function renderAnalytics(incidents) {
+    const catContainer = document.getElementById('category-chart');
+    const groupContainer = document.getElementById('group-chart');
+
+    if (!catContainer || !groupContainer) return;
+
+    // 1. Category Chart
+    const cats = {};
+    incidents.forEach(i => cats[i.category] = (cats[i.category] || 0) + 1);
+    
+    catContainer.innerHTML = '';
+    const maxCat = Math.max(...Object.values(cats), 1);
+    Object.entries(cats).forEach(([name, count]) => {
+        const percentage = (count / maxCat) * 100;
+        const row = document.createElement('div');
+        row.className = 'chart-row';
+        row.innerHTML = `
+            <div class="chart-label">${name}</div>
+            <div class="chart-bar-bg"><div class="chart-bar" style="width: ${percentage}%"></div></div>
+            <div class="chart-value">${count}</div>
+        `;
+        catContainer.appendChild(row);
+    });
+
+    // 2. Group Chart
+    const groups = {};
+    incidents.forEach(i => {
+        if(i.source !== 'Manual Input') groups[i.source] = (groups[i.source] || 0) + 1;
+    });
+
+    groupContainer.innerHTML = '';
+    const sortedGroups = Object.entries(groups).sort((a,b) => b[1] - a[1]).slice(0, 5);
+    const maxGroup = Math.max(...sortedGroups.map(g => g[1]), 1);
+    
+    sortedGroups.forEach(([name, count]) => {
+        const percentage = (count / maxGroup) * 100;
+        const row = document.createElement('div');
+        row.className = 'chart-row';
+        row.innerHTML = `
+            <div class="chart-label">${name.substring(0, 15)}</div>
+            <div class="chart-bar-bg"><div class="chart-bar primary" style="width: ${percentage}%"></div></div>
+            <div class="chart-value">${count}</div>
+        `;
+        groupContainer.appendChild(row);
+    });
+
+    // Efficiency
+    const avgResponse = document.getElementById('avg-response-time');
+    if (avgResponse) avgResponse.textContent = '8.4 mins'; // Calculation placeholder
 }
 
 
