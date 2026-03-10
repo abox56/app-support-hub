@@ -214,46 +214,15 @@ app.post('/api/incidents', async (req, res) => {
 // Roster Database Helpers
 const ROSTER_FILE = path.join(__dirname, 'roster.json');
 
-function readRoster() {
-    try {
-        if (!fs.existsSync(ROSTER_FILE)) {
-            const defaultRoster = [
-                {
-                    rowLabel: "Early",
-                    timeLabel: "10am - 6pm",
-                    shifts: ["Ivan", "Shawn", "NO LEAVE<br/>KNOWLEDGE UPGRADE", "DJ", "Ivan", "-", "-"]
-                },
-                {
-                    rowLabel: "Late",
-                    timeLabel: "6pm - 1am",
-                    shifts: ["DJ", "Ivan", "Shawn", "Ivan", "DJ", "-", "-"]
-                },
-                {
-                    rowLabel: "Utility / Wkend",
-                    timeLabel: "",
-                    shifts: ["Shawn", "DJ", "Ivan", "Shawn", "Shawn", "DJ", "Ivan"]
-                }
-            ];
-            writeRoster(defaultRoster);
-            return defaultRoster;
-        }
-        return JSON.parse(fs.readFileSync(ROSTER_FILE));
-    } catch (e) { return []; }
-}
-
-function writeRoster(data) {
-    fs.writeFileSync(ROSTER_FILE, JSON.stringify(data, null, 2));
-}
-
-// API: Get roster
+// API: Get Roster
 app.get('/api/roster', (req, res) => {
-    res.json(readRoster());
-});
-
-// API: Update roster
-app.post('/api/roster', (req, res) => {
-    writeRoster(req.body);
-    res.json({ success: true, message: "Roster updated successfully" });
+    try {
+        if (!fs.existsSync(ROSTER_FILE)) return res.json([]);
+        const rosterData = fs.readFileSync(ROSTER_FILE, 'utf8');
+        res.json(JSON.parse(rosterData));
+    } catch (e) {
+        res.status(500).json({ error: "Failed to read roster" });
+    }
 });
 
 // Fallback to index.html for unknown routes (SPA style)

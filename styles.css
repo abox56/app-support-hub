@@ -577,17 +577,80 @@ body {
     box-shadow: 0 4px 12px rgba(0, 229, 255, 0.3);
 }
 
-/* -------------------------------------
- * Shift Matrix
- * ------------------------------------- */
+/* --- Roster Header & Navigation --- */
+.roster-header-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+.week-nav {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+.nav-btn {
+    background: var(--glass-bg);
+    border: var(--glass-border);
+    color: var(--text-primary);
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.nav-btn:hover {
+    background: var(--card-hover);
+    border-color: var(--cyan);
+}
+
+.week-title {
+    font-size: 1.2rem;
+    font-weight: 300;
+    letter-spacing: 1px;
+}
+
+.view-toggle {
+    display: flex;
+    background: var(--glass-bg);
+    padding: 3px;
+    border-radius: 20px;
+    border: var(--glass-border);
+}
+
+.toggle-btn {
+    padding: 0.4rem 1.2rem;
+    border-radius: 18px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.toggle-btn.active {
+    background: var(--brand-red);
+    color: white;
+    box-shadow: 0 4px 10px rgba(255, 0, 0, 0.2);
+}
+
 .matrix-grid {
     display: grid;
-    grid-template-columns: 80px repeat(7, 1fr);
-    gap: 0.75rem;
+    grid-template-columns: 120px repeat(7, 1fr);
+    gap: 1rem;
+    padding: 1rem;
 }
 
 .matrix-header {
-    font-size: 0.75rem;
+    font-size: 0.8rem;
     color: var(--text-secondary);
     text-transform: uppercase;
     letter-spacing: 1px;
@@ -1815,4 +1878,62 @@ body {
     font-size: 0.6rem;
     color: var(--text-secondary);
     line-height: 1.6;
+}
+
+/* --- Month View --- */
+.month-container {
+    padding: 2rem;
+    min-height: 400px;
+}
+
+.month-weeks-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.month-week-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.25rem 2rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 1px solid transparent;
+}
+
+.month-week-row:hover {
+    background: var(--card-hover);
+    border-color: var(--cyan);
+    transform: translateX(10px);
+}
+
+.week-label {
+    font-size: 1.1rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    min-width: 250px;
+}
+
+.week-summary {
+    display: flex;
+    gap: 0.8rem;
+    flex-grow: 1;
+}
+
+.member-pill {
+    padding: 0.3rem 0.8rem;
+    border-radius: 12px;
+    background: rgba(0, 229, 255, 0.1);
+    color: var(--cyan);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+.view-hint {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    opacity: 0.7;
 }

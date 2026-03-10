@@ -170,65 +170,173 @@ if (savedTheme) {
     });
 }
 
-function updateActivePIC(roster) {
+function updateActivePIC() {
+    if (allWeeks.length === 0) return;
+    
     const now = new Date();
-    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const weekIndex = findCurrentWeekIndex(now);
+    const week = allWeeks[weekIndex];
+    if (!week) return;
+
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     const currentDay = dayNames[now.getDay()];
     const currentHour = now.getHours();
 
-    let shiftType = 'Early'; // default
-    if (currentHour >= 18 || currentHour < 2) shiftType = 'Late';
-    else if (currentHour >= 10 && currentHour < 18) shiftType = 'Early';
-    else shiftType = 'Utility / Wkend'; // 2am to 10am is technically utility or gap
+    // Mapping rows to hours: 0: 10-12, 1: 1-5, 2: 5-7, 3: 8pm-2am
+    let rowIndex = -1;
+    if (currentHour >= 10 && currentHour < 13) rowIndex = 0;
+    else if (currentHour >= 13 && currentHour < 17) rowIndex = 1;
+    else if (currentHour >= 17 && currentHour < 20) rowIndex = 2;
+    else if (currentHour >= 20 || currentHour < 2) rowIndex = 3;
 
-    const row = roster.find(r => r.rowLabel.includes(shiftType));
-    if (row) {
-        const dayIdx = (now.getDay() + 6) % 7; // Mon is 0
-        const pic = row.shifts[dayIdx];
+    if (rowIndex !== -1 && week.days[currentDay]) {
+        const shift = week.days[currentDay][rowIndex];
+        const pics = [shift.Ivan, shift.Shawn, shift.DJ].filter(n => n && n !== 'Rest Day' && n !== 'AL' && n !== 'PH');
         const picElement = document.getElementById('current-pic');
-        if (picElement) picElement.textContent = pic || '--';
+        if (picElement) picElement.textContent = pics.join(' / ') || 'None';
     }
 }
+
+let allWeeks = [];
+let currentWeekIndex = 0;
 
 async function initRoster() {
     try {
         const response = await apiFetch('/api/roster');
-        const roster = await response.json();
-        const grid = document.getElementById('roster-grid');
-        if (!grid) return;
-
-        // Keep headers, clear the rest
-        const headers = Array.from(grid.querySelectorAll('.matrix-header'));
-        grid.innerHTML = '';
-        headers.forEach(h => grid.appendChild(h));
-
-        const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-
-        roster.forEach(row => {
-            const labelDiv = document.createElement('div');
-            labelDiv.className = 'matrix-row-label';
-            labelDiv.innerHTML = `${row.rowLabel}<br/><span>${row.timeLabel}</span>`;
-            grid.appendChild(labelDiv);
-
-            row.shifts.forEach((shiftText, index) => {
-                const shiftDiv = document.createElement('div');
-                shiftDiv.className = 'shift-card';
-                if (shiftText === '-') shiftDiv.classList.add('off-day');
-                if (shiftText.includes('KNOWLEDGE UPGRADE')) shiftDiv.classList.add('knowledge-wednesday');
-                if (row.rowLabel === 'Early' && days[index] === 'Mon') shiftDiv.classList.add('peak-window');
-                if (row.rowLabel === 'Early' && days[index] === 'Tue') shiftDiv.classList.add('selected-active');
-
-                shiftDiv.setAttribute('data-day', days[index]);
-                shiftDiv.innerHTML = shiftText;
-                grid.appendChild(shiftDiv);
-            });
-        });
-
-        updateActivePIC(roster);
+        allWeeks = await response.json();
+        
+        // Find current week based on 2026 dates (e.g. "9Mar-15Mar")
+        const now = new Date();
+        currentWeekIndex = findCurrentWeekIndex(now);
+        
+        renderWeek(currentWeekIndex);
+        updateActivePIC();
     } catch (err) {
         console.error('Failed to load roster:', err);
     }
 }
+
+function findCurrentWeekIndex(date) {
+    // Simple logic: if title contains today's week range
+    // For now, let's just default to week 7 for March 10 (Mar26 Week2)
+    // In production, we'd parse the dateRange string
+    const march10Index = allWeeks.findIndex(w => w.title.includes('9Mar-15Mar'));
+    return march10Index !== -1 ? march10Index : 0;
+}
+
+function renderWeek(index) {
+    if (index < 0 || index >= allWeeks.length) return;
+    currentWeekIndex = index;
+    
+    const week = allWeeks[index];
+    document.getElementById('current-week-label').textContent = week.title;
+
+    const grid = document.getElementById('roster-grid');
+    if (!grid) return;
+
+    grid.innerHTML = `
+        <div class="matrix-header">Shift</div>
+        <div class="matrix-header">Mon</div>
+        <div class="matrix-header">Tue</div>
+        <div class="matrix-header knowledge-wednesday-header">Wed ✽</div>
+        <div class="matrix-header">Thu</div>
+        <div class="matrix-header">Fri</div>
+        <div class="matrix-header">Sat</div>
+        <div class="matrix-header">Sun</div>
+    `;
+
+    const dayKeys = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    const rowLabels = ['Early', 'Late']; // Map based on shift count/times
+    
+    // We assume each day has the same number of shift rows (usually 4 for this roster)
+    const maxRows = 4; 
+    
+    for (let r = 0; r < maxRows; r++) {
+        // Row Label
+        const labelDiv = document.createElement('div');
+        labelDiv.className = 'matrix-row-label';
+        const firstDayShift = week.days['Monday'][r];
+        labelDiv.innerHTML = `${r === 0 ? 'Early' : r === 3 ? 'Deep Night' : 'Mid'}<br/><span>${firstDayShift ? firstDayShift.time : ''}</span>`;
+        grid.appendChild(labelDiv);
+
+        dayKeys.forEach(day => {
+            const shift = week.days[day][r];
+            const shiftDiv = document.createElement('div');
+            shiftDiv.className = 'shift-card';
+            
+            if (shift) {
+                const content = [shift.Ivan, shift.Shawn, shift.DJ].filter(n => n && n !== 'Rest Day' && n !== 'AL' && n !== 'PH').join(' / ');
+                if (!content || content.includes('Rest Day')) shiftDiv.classList.add('off-day');
+                shiftDiv.innerHTML = content || '-';
+            } else {
+                shiftDiv.classList.add('off-day');
+                shiftDiv.textContent = '-';
+            }
+            grid.appendChild(shiftDiv);
+        });
+    }
+}
+
+function changeWeek(delta) {
+    const next = currentWeekIndex + delta;
+    if (next >= 0 && next < allWeeks.length) {
+        renderWeek(next);
+    }
+}
+
+function toggleRosterView(view) {
+    const weekGrid = document.getElementById('roster-grid');
+    const monthView = document.getElementById('month-view');
+    const toggleWeek = document.getElementById('toggle-week');
+    const toggleMonth = document.getElementById('toggle-month');
+
+    if (view === 'week') {
+        weekGrid.style.display = 'grid';
+        monthView.style.display = 'none';
+        toggleWeek.classList.add('active');
+        toggleMonth.classList.remove('active');
+    } else {
+        weekGrid.style.display = 'none';
+        monthView.style.display = 'block';
+        toggleWeek.classList.remove('active');
+        toggleMonth.classList.add('active');
+        renderMonthView();
+    }
+}
+
+function renderMonthView() {
+    const container = document.getElementById('month-view');
+    if (!container) return;
+
+    let html = `
+        <div class="month-grid-header">
+            <h3 class="month-title">Monthly Overview (Mar 2026)</h3>
+        </div>
+        <div class="month-weeks-list">
+    `;
+
+    allWeeks.forEach((week, idx) => {
+        // Simple summary of each week
+        const mondayIvan = week.days['Monday'][0].Ivan; // Sample
+        html += `
+            <div class="month-week-row glass" onclick="renderWeek(${idx}); toggleRosterView('week')">
+                <div class="week-label">${week.title}</div>
+                <div class="week-summary">
+                    <span class="member-pill">Ivan</span>
+                    <span class="member-pill">Shawn</span>
+                    <span class="member-pill">DJ</span>
+                </div>
+                <div class="view-hint">View Details →</div>
+            </div>
+        `;
+    });
+
+    html += `</div>`;
+    container.innerHTML = html;
+}
+
+// Remove the placeholder function we added earlier at the end of initRoster block
+
 
 async function initTimeline() {
     try {

@@ -1,41 +1,1703 @@
 [
   {
-    "rowLabel": "Early",
-    "timeLabel": "10am - 6pm",
-    "shifts": [
-      "Ivan",
-      "Shawn",
-      "NO LEAVE<br/>KNOWLEDGE UPGRADE",
-      "DJ",
-      "Ivan",
-      "-",
-      "-"
-    ]
+    "title": "Jan26 Week1 (5Jan-11Jan)",
+    "dateRange": "5Jan-11Jan",
+    "days": {
+      "Monday": [
+        {
+          "time": "10 AM - 12 PM (2 hr)",
+          "Ivan": "11am-1pm",
+          "Shawn": "✓",
+          "DJ": "✓"
+        },
+        {
+          "time": "1 PM - 5 PM (4 hr)",
+          "Ivan": "",
+          "Shawn": "✓",
+          "DJ": "✓"
+        },
+        {
+          "time": "5 PM - 7 PM (2 hr)",
+          "Ivan": "",
+          "Shawn": "✓",
+          "DJ": "✓"
+        },
+        {
+          "time": "8 PM - 2 AM (6 Hr)",
+          "Ivan": "8pm-1am",
+          "Shawn": "",
+          "DJ": ""
+        }
+      ],
+      "Tuesday": [
+        {
+          "time": "10 AM - 12 PM (2 hr)",
+          "Ivan": "",
+          "Shawn": "✓",
+          "DJ": "✓"
+        },
+        {
+          "time": "1 PM - 5 PM (4 hr)",
+          "Ivan": "",
+          "Shawn": "✓",
+          "DJ": "✓"
+        },
+        {
+          "time": "5 PM - 7 PM (2 hr)",
+          "Ivan": "",
+          "Shawn": "✓",
+          "DJ": "✓"
+        },
+        {
+          "time": "8 PM - 2 AM (6 Hr)",
+          "Ivan": "8pm-1am",
+          "Shawn": "",
+          "DJ": ""
+        }
+      ],
+      "Wednesday": [
+        {
+          "time": "10 AM - 12 PM (2 hr)",
+          "Ivan": "11am-3pm",
+          "Shawn": "✓",
+          "DJ": "✓"
+        },
+        {
+          "time": "1 PM - 4 PM (3 hr)",
+          "Ivan": "",
+          "Shawn": "✓",
+          "DJ": "✓"
+        },
+        {
+          "time": "4 PM - 7 PM (3 hr)",
+          "Ivan": "",
+          "Shawn": "✓",
+          "DJ": "✓"
+        },
+        {
+          "time": "8 PM - 11 PM (3 Hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": ""
+        },
+        {
+          "time": "11 PM - 2 AM (3 Hr)",
+          "Ivan": "8pm-1am",
+          "Shawn": "",
+          "DJ": ""
+        }
+      ],
+      "Thursday": [
+        {
+          "time": "10 AM - 12 PM (2 hr)",
+          "Ivan": "Rest Day",
+          "Shawn": "✓",
+          "DJ": "10am-2pm"
+        },
+        {
+          "time": "1 PM - 5 PM (4 hr)",
+          "Ivan": "",
+          "Shawn": "✓",
+          "DJ": ""
+        },
+        {
+          "time": "5 PM - 7 PM (2 hr)",
+          "Ivan": "",
+          "Shawn": "✓",
+          "DJ": ""
+        },
+        {
+          "time": "8 PM - 2 AM (6 Hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": "8pm-1am"
+        }
+      ],
+      "Friday": [
+        {
+          "time": "10 AM - 12 PM (2 hr)",
+          "Ivan": "Rest Day",
+          "Shawn": "✓",
+          "DJ": "10am-2pm"
+        },
+        {
+          "time": "1 PM - 5 PM (4 hr)",
+          "Ivan": "",
+          "Shawn": "✓",
+          "DJ": ""
+        },
+        {
+          "time": "5 PM - 7 PM (2 hr)",
+          "Ivan": "",
+          "Shawn": "✓",
+          "DJ": ""
+        },
+        {
+          "time": "8 PM - 2 AM (6 Hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": "8pm-1am"
+        }
+      ],
+      "Saturday": [
+        {
+          "time": "10 AM - 12 PM (2 hr)",
+          "Ivan": "10:00am-4pm",
+          "Shawn": "Rest Day",
+          "DJ": "Rest Day"
+        },
+        {
+          "time": "1 PM - 5 PM (4 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": ""
+        },
+        {
+          "time": "5 PM - 7 PM (2 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": ""
+        },
+        {
+          "time": "8 PM - 2 AM (6 Hr)",
+          "Ivan": "8pm-1am",
+          "Shawn": "",
+          "DJ": ""
+        }
+      ],
+      "Sunday": [
+        {
+          "time": "10 AM - 12 PM (2 hr)",
+          "Ivan": "10:00am-4pm",
+          "Shawn": "Rest Day",
+          "DJ": "Rest Day"
+        },
+        {
+          "time": "1 PM - 5 PM (4 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": ""
+        },
+        {
+          "time": "5 PM - 7 PM (2 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": ""
+        },
+        {
+          "time": "8 PM - 2 AM (6 Hr)",
+          "Ivan": "8pm-1am",
+          "Shawn": "",
+          "DJ": ""
+        }
+      ]
+    }
   },
   {
-    "rowLabel": "Late",
-    "timeLabel": "6pm - 1am",
-    "shifts": [
-      "DJ",
-      "Ivan",
-      "Shawn",
-      "Ivan",
-      "DJ",
-      "-",
-      "-"
-    ]
+    "title": "Jan26 Week2 (12Jan-18Jan)",
+    "dateRange": "12Jan-18Jan",
+    "days": {
+      "Monday": [
+        {
+          "time": "10 AM - 12 PM (2 hr)",
+          "Ivan": "11am-1pm",
+          "Shawn": "✓",
+          "DJ": "✓"
+        },
+        {
+          "time": "1 PM - 5 PM (4 hr)",
+          "Ivan": "",
+          "Shawn": "✓",
+          "DJ": "✓"
+        },
+        {
+          "time": "5 PM - 7 PM (2 hr)",
+          "Ivan": "",
+          "Shawn": "✓",
+          "DJ": "✓"
+        },
+        {
+          "time": "8 PM - 2 AM (6 Hr)",
+          "Ivan": "8pm-1am",
+          "Shawn": "",
+          "DJ": ""
+        }
+      ],
+      "Tuesday": [
+        {
+          "time": "10 AM - 12 PM (2 hr)",
+          "Ivan": "",
+          "Shawn": "✓",
+          "DJ": "✓"
+        },
+        {
+          "time": "1 PM - 5 PM (4 hr)",
+          "Ivan": "",
+          "Shawn": "✓",
+          "DJ": "✓"
+        },
+        {
+          "time": "5 PM - 7 PM (2 hr)",
+          "Ivan": "",
+          "Shawn": "✓",
+          "DJ": "✓"
+        },
+        {
+          "time": "8 PM - 2 AM (6 Hr)",
+          "Ivan": "8pm-1am",
+          "Shawn": "",
+          "DJ": ""
+        }
+      ],
+      "Wednesday": [
+        {
+          "time": "10 AM - 12 PM (2 hr)",
+          "Ivan": " ",
+          "Shawn": "✓",
+          "DJ": "10am-2pm"
+        },
+        {
+          "time": "1 PM - 4 PM (3 hr)",
+          "Ivan": " ",
+          "Shawn": "✓",
+          "DJ": " "
+        },
+        {
+          "time": "4 PM - 7 PM (3 hr)",
+          "Ivan": "AL",
+          "Shawn": "✓",
+          "DJ": " "
+        },
+        {
+          "time": "8 PM - 11 PM (3 Hr)",
+          "Ivan": " ",
+          "Shawn": "",
+          "DJ": " "
+        },
+        {
+          "time": "11 PM - 2 AM (3 Hr)",
+          "Ivan": " ",
+          "Shawn": "",
+          "DJ": "8pm-1am"
+        }
+      ],
+      "Thursday": [
+        {
+          "time": "10 AM - 12 PM (2 hr)",
+          "Ivan": "Rest Day",
+          "Shawn": "✓",
+          "DJ": "10am-2pm"
+        },
+        {
+          "time": "1 PM - 5 PM (4 hr)",
+          "Ivan": "",
+          "Shawn": "✓",
+          "DJ": ""
+        },
+        {
+          "time": "5 PM - 7 PM (2 hr)",
+          "Ivan": "",
+          "Shawn": "✓",
+          "DJ": ""
+        },
+        {
+          "time": "8 PM - 2 AM (6 Hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": "8pm-1am"
+        }
+      ],
+      "Friday": [
+        {
+          "time": "10 AM - 12 PM (2 hr)",
+          "Ivan": "Rest Day",
+          "Shawn": "✓",
+          "DJ": "10am-2pm"
+        },
+        {
+          "time": "1 PM - 5 PM (4 hr)",
+          "Ivan": "",
+          "Shawn": "✓",
+          "DJ": ""
+        },
+        {
+          "time": "5 PM - 7 PM (2 hr)",
+          "Ivan": "",
+          "Shawn": "✓",
+          "DJ": ""
+        },
+        {
+          "time": "8 PM - 2 AM (6 Hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": "8pm-1am"
+        }
+      ],
+      "Saturday": [
+        {
+          "time": "10 AM - 12 PM (2 hr)",
+          "Ivan": "10:00am-4pm",
+          "Shawn": "Rest Day",
+          "DJ": "Rest Day"
+        },
+        {
+          "time": "1 PM - 5 PM (4 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": ""
+        },
+        {
+          "time": "5 PM - 7 PM (2 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": ""
+        },
+        {
+          "time": "8 PM - 2 AM (6 Hr)",
+          "Ivan": "8pm-1am",
+          "Shawn": "",
+          "DJ": ""
+        }
+      ],
+      "Sunday": [
+        {
+          "time": "10 AM - 12 PM (2 hr)",
+          "Ivan": "10:00am-4pm",
+          "Shawn": "Rest Day",
+          "DJ": "Rest Day"
+        },
+        {
+          "time": "1 PM - 5 PM (4 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": ""
+        },
+        {
+          "time": "5 PM - 7 PM (2 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": ""
+        },
+        {
+          "time": "8 PM - 2 AM (6 Hr)",
+          "Ivan": "8pm-1am",
+          "Shawn": "",
+          "DJ": ""
+        }
+      ]
+    }
   },
   {
-    "rowLabel": "Utility / Wkend",
-    "timeLabel": "",
-    "shifts": [
-      "Shawn",
-      "DJ",
-      "Ivan",
-      "Shawn",
-      "Shawn",
-      "DJ",
-      "Ivan"
-    ]
+    "title": "Jan26 Week3 (19Jan-25Jan)",
+    "dateRange": "19Jan-25Jan",
+    "days": {
+      "Monday": [
+        {
+          "time": "10 AM - 12 PM (2 hr)",
+          "Ivan": "11am-1pm",
+          "Shawn": "AL",
+          "DJ": "✓"
+        },
+        {
+          "time": "1 PM - 5 PM (4 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": "✓"
+        },
+        {
+          "time": "5 PM - 7 PM (2 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": "✓"
+        },
+        {
+          "time": "8 PM - 2 AM (6 Hr)",
+          "Ivan": "8pm-1am",
+          "Shawn": "",
+          "DJ": ""
+        }
+      ],
+      "Tuesday": [
+        {
+          "time": "10 AM - 12 PM (2 hr)",
+          "Ivan": "",
+          "Shawn": "✓",
+          "DJ": "AL"
+        },
+        {
+          "time": "1 PM - 5 PM (4 hr)",
+          "Ivan": "",
+          "Shawn": "✓",
+          "DJ": ""
+        },
+        {
+          "time": "5 PM - 7 PM (2 hr)",
+          "Ivan": "",
+          "Shawn": "✓",
+          "DJ": ""
+        },
+        {
+          "time": "8 PM - 2 AM (6 Hr)",
+          "Ivan": "8pm-1am",
+          "Shawn": "",
+          "DJ": ""
+        }
+      ],
+      "Wednesday": [
+        {
+          "time": "10 AM - 12 PM (2 hr)",
+          "Ivan": " ",
+          "Shawn": "✓",
+          "DJ": "10am-2pm"
+        },
+        {
+          "time": "1 PM - 4 PM (3 hr)",
+          "Ivan": " ",
+          "Shawn": "✓",
+          "DJ": " "
+        },
+        {
+          "time": "4 PM - 7 PM (3 hr)",
+          "Ivan": "AL",
+          "Shawn": "✓",
+          "DJ": " "
+        },
+        {
+          "time": "8 PM - 11 PM (3 Hr)",
+          "Ivan": " ",
+          "Shawn": "",
+          "DJ": " "
+        },
+        {
+          "time": "11 PM - 2 AM (3 Hr)",
+          "Ivan": " ",
+          "Shawn": "",
+          "DJ": "8pm-1am"
+        }
+      ],
+      "Thursday": [
+        {
+          "time": "10 AM - 12 PM (2 hr)",
+          "Ivan": "Rest Day",
+          "Shawn": "✓",
+          "DJ": "10am-2pm"
+        },
+        {
+          "time": "1 PM - 5 PM (4 hr)",
+          "Ivan": "",
+          "Shawn": "✓",
+          "DJ": ""
+        },
+        {
+          "time": "5 PM - 7 PM (2 hr)",
+          "Ivan": "",
+          "Shawn": "✓",
+          "DJ": ""
+        },
+        {
+          "time": "8 PM - 2 AM (6 Hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": "8pm-1am"
+        }
+      ],
+      "Friday": [
+        {
+          "time": "10 AM - 12 PM (2 hr)",
+          "Ivan": "Rest Day",
+          "Shawn": "✓",
+          "DJ": "10am-2pm"
+        },
+        {
+          "time": "1 PM - 5 PM (4 hr)",
+          "Ivan": "",
+          "Shawn": "✓",
+          "DJ": ""
+        },
+        {
+          "time": "5 PM - 7 PM (2 hr)",
+          "Ivan": "",
+          "Shawn": "✓",
+          "DJ": ""
+        },
+        {
+          "time": "8 PM - 2 AM (6 Hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": "8pm-1am"
+        }
+      ],
+      "Saturday": [
+        {
+          "time": "10 AM - 12 PM (2 hr)",
+          "Ivan": "10:00am-4pm",
+          "Shawn": "Rest Day",
+          "DJ": "Rest Day"
+        },
+        {
+          "time": "1 PM - 5 PM (4 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": ""
+        },
+        {
+          "time": "5 PM - 7 PM (2 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": ""
+        },
+        {
+          "time": "8 PM - 2 AM (6 Hr)",
+          "Ivan": "8pm-1am",
+          "Shawn": "",
+          "DJ": ""
+        }
+      ],
+      "Sunday": [
+        {
+          "time": "10 AM - 12 PM (2 hr)",
+          "Ivan": "10:00am-4pm",
+          "Shawn": "Rest Day",
+          "DJ": "Rest Day"
+        },
+        {
+          "time": "1 PM - 5 PM (4 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": ""
+        },
+        {
+          "time": "5 PM - 7 PM (2 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": ""
+        },
+        {
+          "time": "8 PM - 2 AM (6 Hr)",
+          "Ivan": "8pm-1am",
+          "Shawn": "",
+          "DJ": ""
+        }
+      ]
+    }
+  },
+  {
+    "title": " ",
+    "dateRange": " ",
+    "days": {
+      "2 consecutive off day for each support personnel, will rotate in weekly basis": [],
+      "Monday": [
+        {
+          "time": "10 AM - 12 PM (2 hr)",
+          "Ivan": "office close",
+          "Shawn": "office close",
+          "DJ": "flexi 2hours (office close)"
+        },
+        {
+          "time": "1 PM - 5 PM (4 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": "9pm-11pm (office close)"
+        },
+        {
+          "time": "5 PM - 7 PM (2 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": ""
+        },
+        {
+          "time": "8 PM - 2 AM (6 Hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": ""
+        }
+      ],
+      "Tuesday": [
+        {
+          "time": "10 AM - 12 PM (2 hr)",
+          "Ivan": "PH",
+          "Shawn": "PH",
+          "DJ": "PH"
+        },
+        {
+          "time": "1 PM - 5 PM (4 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": ""
+        },
+        {
+          "time": "5 PM - 7 PM (2 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": ""
+        },
+        {
+          "time": "8 PM - 2 AM (6 Hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": ""
+        }
+      ],
+      "Wednesday": [
+        {
+          "time": "10 AM - 12 PM (2 hr)",
+          "Ivan": " ",
+          "Shawn": " ",
+          "DJ": " "
+        },
+        {
+          "time": "1 PM - 4 PM (3 hr)",
+          "Ivan": " ",
+          "Shawn": " ",
+          "DJ": " "
+        },
+        {
+          "time": "4 PM - 7 PM (3 hr)",
+          "Ivan": "PH",
+          "Shawn": "PH",
+          "DJ": "PH"
+        },
+        {
+          "time": "8 PM - 11 PM (3 Hr)",
+          "Ivan": " ",
+          "Shawn": " ",
+          "DJ": " "
+        },
+        {
+          "time": "11 PM - 2 AM (3 Hr)",
+          "Ivan": " ",
+          "Shawn": " ",
+          "DJ": " "
+        }
+      ],
+      "Thursday": [
+        {
+          "time": "10 AM - 12 PM (2 hr)",
+          "Ivan": "flexi 2hours (office close)",
+          "Shawn": "office close",
+          "DJ": "office close"
+        },
+        {
+          "time": "1 PM - 5 PM (4 hr)",
+          "Ivan": "9pm-11pm (office close)",
+          "Shawn": "",
+          "DJ": ""
+        },
+        {
+          "time": "5 PM - 7 PM (2 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": ""
+        },
+        {
+          "time": "8 PM - 2 AM (6 Hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": ""
+        }
+      ],
+      "Friday": [
+        {
+          "time": "10 AM - 12 PM (2 hr)",
+          "Ivan": "office close",
+          "Shawn": "office close",
+          "DJ": "flexi 2hours (office close)"
+        },
+        {
+          "time": "1 PM - 5 PM (4 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": "9pm-11pm (office close)"
+        },
+        {
+          "time": "5 PM - 7 PM (2 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": ""
+        },
+        {
+          "time": "8 PM - 2 AM (6 Hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": ""
+        }
+      ],
+      "Saturday": [
+        {
+          "time": "10 AM - 12 PM (2 hr)",
+          "Ivan": "office close",
+          "Shawn": "flexi 2hours (office close)",
+          "DJ": "office close"
+        },
+        {
+          "time": "1 PM - 5 PM (4 hr)",
+          "Ivan": "",
+          "Shawn": "9pm-11pm (office close)",
+          "DJ": ""
+        },
+        {
+          "time": "5 PM - 7 PM (2 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": ""
+        },
+        {
+          "time": "8 PM - 2 AM (6 Hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": ""
+        }
+      ],
+      "Sunday": [
+        {
+          "time": "10 AM - 12 PM (2 hr)",
+          "Ivan": "office close",
+          "Shawn": "flexi 2hours (office close)",
+          "DJ": "office close"
+        },
+        {
+          "time": "1 PM - 5 PM (4 hr)",
+          "Ivan": "",
+          "Shawn": "9pm-11pm (office close)",
+          "DJ": ""
+        },
+        {
+          "time": "5 PM - 7 PM (2 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": ""
+        }
+      ]
+    }
+  },
+  {
+    "title": " ",
+    "dateRange": " ",
+    "days": {
+      "2 consecutive off day for each support personnel, will rotate in weekly basis": [],
+      "Monday": [
+        {
+          "time": "10 AM - 12 PM (2 hr)",
+          "Ivan": "✓",
+          "Shawn": "RL for CNY ( 8hours)",
+          "DJ": "11am-1pm"
+        },
+        {
+          "time": "1 PM - 5 PM (4 hr)",
+          "Ivan": "✓",
+          "Shawn": "",
+          "DJ": ""
+        },
+        {
+          "time": "5 PM - 7 PM (2 hr)",
+          "Ivan": "✓",
+          "Shawn": "",
+          "DJ": ""
+        },
+        {
+          "time": "8 PM - 2 AM (6 Hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": "8pm-1am"
+        }
+      ],
+      "Tuesday": [
+        {
+          "time": "10 AM - 12 PM (2 hr)",
+          "Ivan": "✓",
+          "Shawn": "AL",
+          "DJ": ""
+        },
+        {
+          "time": "1 PM - 5 PM (4 hr)",
+          "Ivan": "✓",
+          "Shawn": "",
+          "DJ": ""
+        },
+        {
+          "time": "5 PM - 7 PM (2 hr)",
+          "Ivan": "✓",
+          "Shawn": "",
+          "DJ": ""
+        },
+        {
+          "time": "8 PM - 2 AM (6 Hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": "8pm-1am"
+        }
+      ],
+      "Wednesday": [
+        {
+          "time": "10 AM - 12 PM (2 hr)",
+          "Ivan": "✓",
+          "Shawn": " ",
+          "DJ": "11am-3pm"
+        },
+        {
+          "time": "1 PM - 4 PM (3 hr)",
+          "Ivan": "✓",
+          "Shawn": " ",
+          "DJ": ""
+        },
+        {
+          "time": "4 PM - 7 PM (3 hr)",
+          "Ivan": "✓",
+          "Shawn": "AL",
+          "DJ": ""
+        },
+        {
+          "time": "8 PM - 11 PM (3 Hr)",
+          "Ivan": "",
+          "Shawn": " ",
+          "DJ": ""
+        },
+        {
+          "time": "11 PM - 2 AM (3 Hr)",
+          "Ivan": "",
+          "Shawn": " ",
+          "DJ": "8pm-1am"
+        }
+      ],
+      "Thursday": [
+        {
+          "time": "10 AM - 12 PM (2 hr)",
+          "Ivan": "✓",
+          "Shawn": "10am-2pm",
+          "DJ": "Rest Day"
+        },
+        {
+          "time": "1 PM - 5 PM (4 hr)",
+          "Ivan": "✓",
+          "Shawn": "",
+          "DJ": ""
+        },
+        {
+          "time": "5 PM - 7 PM (2 hr)",
+          "Ivan": "✓",
+          "Shawn": "",
+          "DJ": ""
+        },
+        {
+          "time": "8 PM - 2 AM (6 Hr)",
+          "Ivan": "",
+          "Shawn": "8pm-1am",
+          "DJ": ""
+        }
+      ],
+      "Friday": [
+        {
+          "time": "10 AM - 12 PM (2 hr)",
+          "Ivan": "✓",
+          "Shawn": "10am-2pm",
+          "DJ": "Rest Day"
+        },
+        {
+          "time": "1 PM - 5 PM (4 hr)",
+          "Ivan": "✓",
+          "Shawn": "",
+          "DJ": ""
+        },
+        {
+          "time": "5 PM - 7 PM (2 hr)",
+          "Ivan": "✓",
+          "Shawn": "",
+          "DJ": ""
+        },
+        {
+          "time": "8 PM - 2 AM (6 Hr)",
+          "Ivan": "",
+          "Shawn": "8pm-1am",
+          "DJ": ""
+        }
+      ],
+      "Saturday": [
+        {
+          "time": "10 AM - 12 PM (2 hr)",
+          "Ivan": "Rest Day",
+          "Shawn": "Rest Day",
+          "DJ": "10:00am-4pm"
+        },
+        {
+          "time": "1 PM - 5 PM (4 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": ""
+        },
+        {
+          "time": "5 PM - 7 PM (2 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": ""
+        },
+        {
+          "time": "8 PM - 2 AM (6 Hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": "8pm-1am"
+        }
+      ],
+      "Sunday": [
+        {
+          "time": "10 AM - 12 PM (2 hr)",
+          "Ivan": "Rest Day",
+          "Shawn": "Rest Day",
+          "DJ": "10:00am-4pm"
+        },
+        {
+          "time": "1 PM - 5 PM (4 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": ""
+        },
+        {
+          "time": "5 PM - 7 PM (2 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": ""
+        }
+      ]
+    }
+  },
+  {
+    "title": " ",
+    "dateRange": " ",
+    "days": {
+      "2 consecutive off day for each support personnel, will rotate in weekly basis": [],
+      "Monday": [
+        {
+          "time": "10 AM - 12 PM (2 hr)",
+          "Ivan": "AL",
+          "Shawn": "10am-1pm",
+          "DJ": "✓"
+        },
+        {
+          "time": "1 PM - 5 PM (4 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": "✓"
+        },
+        {
+          "time": "5 PM - 7 PM (2 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": "✓"
+        },
+        {
+          "time": "8 PM - 2 AM (6 Hr)",
+          "Ivan": "",
+          "Shawn": "8pm-1am",
+          "DJ": ""
+        }
+      ],
+      "Tuesday": [
+        {
+          "time": "10 AM - 12 PM (2 hr)",
+          "Ivan": "10am-2pm",
+          "Shawn": "AL",
+          "DJ": "✓"
+        },
+        {
+          "time": "1 PM - 5 PM (4 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": "✓"
+        },
+        {
+          "time": "5 PM - 7 PM (2 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": "✓"
+        },
+        {
+          "time": "8 PM - 2 AM (6 Hr)",
+          "Ivan": "8pm-1am",
+          "Shawn": "",
+          "DJ": ""
+        }
+      ],
+      "Wednesday": [
+        {
+          "time": "10 AM - 12 PM (2 hr)",
+          "Ivan": "1pm-4pm",
+          "Shawn": " ",
+          "DJ": "✓"
+        },
+        {
+          "time": "1 PM - 4 PM (3 hr)",
+          "Ivan": "",
+          "Shawn": " ",
+          "DJ": "✓"
+        },
+        {
+          "time": "4 PM - 7 PM (3 hr)",
+          "Ivan": "",
+          "Shawn": "AL",
+          "DJ": "✓"
+        },
+        {
+          "time": "8 PM - 11 PM (3 Hr)",
+          "Ivan": "",
+          "Shawn": " ",
+          "DJ": ""
+        },
+        {
+          "time": "11 PM - 2 AM (3 Hr)",
+          "Ivan": "8pm-1am",
+          "Shawn": " ",
+          "DJ": ""
+        }
+      ],
+      "Thursday": [
+        {
+          "time": "10 AM - 12 PM (2 hr)",
+          "Ivan": "10am-2pm",
+          "Shawn": "Rest Day",
+          "DJ": "✓"
+        },
+        {
+          "time": "1 PM - 5 PM (4 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": "✓"
+        },
+        {
+          "time": "5 PM - 7 PM (2 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": "✓"
+        },
+        {
+          "time": "8 PM - 2 AM (6 Hr)",
+          "Ivan": "8pm-1am",
+          "Shawn": "",
+          "DJ": ""
+        }
+      ],
+      "Friday": [
+        {
+          "time": "10 AM - 12 PM (2 hr)",
+          "Ivan": "10am-4pm",
+          "Shawn": "Rest Day",
+          "DJ": "AL"
+        },
+        {
+          "time": "1 PM - 5 PM (4 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": ""
+        },
+        {
+          "time": "5 PM - 7 PM (2 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": ""
+        },
+        {
+          "time": "8 PM - 2 AM (6 Hr)",
+          "Ivan": "10pm-1am",
+          "Shawn": "",
+          "DJ": ""
+        }
+      ],
+      "Saturday": [
+        {
+          "time": "10 AM - 12 PM (2 hr)",
+          "Ivan": "Rest Day",
+          "Shawn": "10:00am-4pm",
+          "DJ": "Rest Day"
+        },
+        {
+          "time": "1 PM - 5 PM (4 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": ""
+        },
+        {
+          "time": "5 PM - 7 PM (2 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": ""
+        },
+        {
+          "time": "8 PM - 2 AM (6 Hr)",
+          "Ivan": "",
+          "Shawn": "8pm-1am",
+          "DJ": ""
+        }
+      ],
+      "Sunday": [
+        {
+          "time": "10 AM - 12 PM (2 hr)",
+          "Ivan": "Rest Day",
+          "Shawn": "10:00am-4pm",
+          "DJ": "Rest Day"
+        },
+        {
+          "time": "1 PM - 5 PM (4 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": ""
+        },
+        {
+          "time": "5 PM - 7 PM (2 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": ""
+        }
+      ]
+    }
+  },
+  {
+    "title": " ",
+    "dateRange": " ",
+    "days": {
+      "Support hour from 10am until 2am except (12-1 pm Lunch break, 7-8pm dinner break)": [],
+      "2 consecutive off day for each support personnel, will rotate in weekly basis": [],
+      "Monday": [
+        {
+          "time": "10 AM - 12 PM (2 hr)",
+          "Ivan": "AL",
+          "Shawn": "10am-1pm",
+          "DJ": "✓"
+        },
+        {
+          "time": "1 PM - 5 PM (4 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": "✓"
+        },
+        {
+          "time": "5 PM - 7 PM (2 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": "✓"
+        },
+        {
+          "time": "8 PM - 2 AM (6 Hr)",
+          "Ivan": "",
+          "Shawn": "8pm-1am",
+          "DJ": ""
+        }
+      ],
+      "Tuesday": [
+        {
+          "time": "10 AM - 12 PM (2 hr)",
+          "Ivan": "10am-2pm",
+          "Shawn": "AL",
+          "DJ": "✓"
+        },
+        {
+          "time": "1 PM - 5 PM (4 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": "✓"
+        },
+        {
+          "time": "5 PM - 7 PM (2 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": "✓"
+        },
+        {
+          "time": "8 PM - 2 AM (6 Hr)",
+          "Ivan": "8pm-1am",
+          "Shawn": "",
+          "DJ": ""
+        }
+      ],
+      "Wednesday": [
+        {
+          "time": "10 AM - 12 PM (2 hr)",
+          "Ivan": "11am-3pm",
+          "Shawn": " ",
+          "DJ": "✓"
+        },
+        {
+          "time": "1 PM - 4 PM (3 hr)",
+          "Ivan": "",
+          "Shawn": " ",
+          "DJ": "✓"
+        },
+        {
+          "time": "4 PM - 7 PM (3 hr)",
+          "Ivan": "",
+          "Shawn": "AL",
+          "DJ": "✓"
+        },
+        {
+          "time": "8 PM - 11 PM (3 Hr)",
+          "Ivan": "",
+          "Shawn": " ",
+          "DJ": ""
+        },
+        {
+          "time": "11 PM - 2 AM (3 Hr)",
+          "Ivan": "8pm-1am",
+          "Shawn": " ",
+          "DJ": ""
+        }
+      ],
+      "Thursday": [
+        {
+          "time": "10 AM - 12 PM (2 hr)",
+          "Ivan": "10am-2pm",
+          "Shawn": "Rest Day",
+          "DJ": "✓"
+        },
+        {
+          "time": "1 PM - 5 PM (4 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": "✓"
+        },
+        {
+          "time": "5 PM - 7 PM (2 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": "✓"
+        },
+        {
+          "time": "8 PM - 2 AM (6 Hr)",
+          "Ivan": "8pm-1am",
+          "Shawn": "",
+          "DJ": ""
+        }
+      ],
+      "Friday": [
+        {
+          "time": "10 AM - 12 PM (2 hr)",
+          "Ivan": "10am-4pm",
+          "Shawn": "Rest Day",
+          "DJ": "AL"
+        },
+        {
+          "time": "1 PM - 5 PM (4 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": ""
+        },
+        {
+          "time": "5 PM - 7 PM (2 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": ""
+        },
+        {
+          "time": "8 PM - 2 AM (6 Hr)",
+          "Ivan": "10pm-1am",
+          "Shawn": "",
+          "DJ": ""
+        }
+      ],
+      "Saturday": [
+        {
+          "time": "10 AM - 12 PM (2 hr)",
+          "Ivan": "Rest Day",
+          "Shawn": "10:00am-4pm",
+          "DJ": "Rest Day"
+        },
+        {
+          "time": "1 PM - 5 PM (4 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": ""
+        },
+        {
+          "time": "5 PM - 7 PM (2 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": ""
+        },
+        {
+          "time": "8 PM - 2 AM (6 Hr)",
+          "Ivan": "",
+          "Shawn": "8pm-1am",
+          "DJ": ""
+        }
+      ],
+      "Sunday": [
+        {
+          "time": "10 AM - 12 PM (2 hr)",
+          "Ivan": "Rest Day",
+          "Shawn": "10:00am-4pm",
+          "DJ": "Rest Day"
+        },
+        {
+          "time": "1 PM - 5 PM (4 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": ""
+        }
+      ]
+    }
+  },
+  {
+    "title": " ",
+    "dateRange": " ",
+    "days": {
+      "Support hour from 10am until 2am except (12-1 pm Lunch break, 7-8pm dinner break)": [],
+      "2 consecutive off day for each support personnel, will rotate in weekly basis": [],
+      "Monday": [
+        {
+          "time": "10 AM - 12 PM (2 hr)",
+          "Ivan": "AL",
+          "Shawn": "10am-1pm",
+          "DJ": "✓"
+        },
+        {
+          "time": "1 PM - 5 PM (4 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": "✓"
+        },
+        {
+          "time": "5 PM - 7 PM (2 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": "✓"
+        },
+        {
+          "time": "8 PM - 2 AM (6 Hr)",
+          "Ivan": "",
+          "Shawn": "8pm-1am",
+          "DJ": ""
+        }
+      ],
+      "Tuesday": [
+        {
+          "time": "10 AM - 12 PM (2 hr)",
+          "Ivan": "10am-2pm",
+          "Shawn": "AL",
+          "DJ": "✓"
+        },
+        {
+          "time": "1 PM - 5 PM (4 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": "✓"
+        },
+        {
+          "time": "5 PM - 7 PM (2 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": "✓"
+        },
+        {
+          "time": "8 PM - 2 AM (6 Hr)",
+          "Ivan": "8pm-1am",
+          "Shawn": "",
+          "DJ": ""
+        }
+      ],
+      "Wednesday": [
+        {
+          "time": "10 AM - 12 PM (2 hr)",
+          "Ivan": "11am-3pm",
+          "Shawn": " ",
+          "DJ": "✓"
+        },
+        {
+          "time": "1 PM - 4 PM (3 hr)",
+          "Ivan": "",
+          "Shawn": " ",
+          "DJ": "✓"
+        },
+        {
+          "time": "4 PM - 7 PM (3 hr)",
+          "Ivan": "",
+          "Shawn": "AL",
+          "DJ": "✓"
+        },
+        {
+          "time": "8 PM - 11 PM (3 Hr)",
+          "Ivan": "",
+          "Shawn": " ",
+          "DJ": ""
+        },
+        {
+          "time": "11 PM - 2 AM (3 Hr)",
+          "Ivan": "8pm-1am",
+          "Shawn": " ",
+          "DJ": ""
+        }
+      ],
+      "Thursday": [
+        {
+          "time": "10 AM - 12 PM (2 hr)",
+          "Ivan": "10am-2pm",
+          "Shawn": "Rest Day",
+          "DJ": "✓"
+        },
+        {
+          "time": "1 PM - 5 PM (4 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": "✓"
+        },
+        {
+          "time": "5 PM - 7 PM (2 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": "✓"
+        },
+        {
+          "time": "8 PM - 2 AM (6 Hr)",
+          "Ivan": "8pm-1am",
+          "Shawn": "",
+          "DJ": ""
+        }
+      ],
+      "Friday": [
+        {
+          "time": "10 AM - 12 PM (2 hr)",
+          "Ivan": "10am-4pm",
+          "Shawn": "Rest Day",
+          "DJ": "AL"
+        },
+        {
+          "time": "1 PM - 5 PM (4 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": ""
+        },
+        {
+          "time": "5 PM - 7 PM (2 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": ""
+        },
+        {
+          "time": "8 PM - 2 AM (6 Hr)",
+          "Ivan": "10pm-1am",
+          "Shawn": "",
+          "DJ": ""
+        }
+      ],
+      "Saturday": [
+        {
+          "time": "10 AM - 12 PM (2 hr)",
+          "Ivan": "Rest Day",
+          "Shawn": "10:00am-4pm",
+          "DJ": "Rest Day"
+        },
+        {
+          "time": "1 PM - 5 PM (4 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": ""
+        },
+        {
+          "time": "5 PM - 7 PM (2 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": ""
+        },
+        {
+          "time": "8 PM - 2 AM (6 Hr)",
+          "Ivan": "",
+          "Shawn": "8pm-1am",
+          "DJ": ""
+        }
+      ],
+      "Sunday": [
+        {
+          "time": "10 AM - 12 PM (2 hr)",
+          "Ivan": "Rest Day",
+          "Shawn": "10:00am-4pm",
+          "DJ": "Rest Day"
+        },
+        {
+          "time": "1 PM - 5 PM (4 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": ""
+        }
+      ]
+    }
+  },
+  {
+    "title": " ",
+    "dateRange": " ",
+    "days": {
+      "Support hour from 10am until 2am except (12-1 pm Lunch break, 7-8pm dinner break)": [],
+      "2 consecutive off day for each support personnel, will rotate in weekly basis": [],
+      "Monday": [
+        {
+          "time": "10 AM - 12 PM (2 hr)",
+          "Ivan": "PH",
+          "Shawn": "PH",
+          "DJ": ""
+        },
+        {
+          "time": "1 PM - 5 PM (4 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": ""
+        },
+        {
+          "time": "5 PM - 7 PM (2 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": ""
+        },
+        {
+          "time": "8 PM - 2 AM (6 Hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": "7pm-11pm (PH)"
+        }
+      ],
+      "Tuesday": [
+        {
+          "time": "10 AM - 12 PM (2 hr)",
+          "Ivan": "AL",
+          "Shawn": "AL",
+          "DJ": "10am-4pm"
+        },
+        {
+          "time": "1 PM - 5 PM (4 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": ""
+        },
+        {
+          "time": "5 PM - 7 PM (2 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": ""
+        },
+        {
+          "time": "8 PM - 2 AM (6 Hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": "10pm-1am"
+        }
+      ],
+      "Wednesday": [
+        {
+          "time": "10 AM - 12 PM (2 hr)",
+          "Ivan": " ",
+          "Shawn": " ",
+          "DJ": "10am-4pm"
+        },
+        {
+          "time": "1 PM - 4 PM (3 hr)",
+          "Ivan": " ",
+          "Shawn": " ",
+          "DJ": ""
+        },
+        {
+          "time": "4 PM - 7 PM (3 hr)",
+          "Ivan": "AL",
+          "Shawn": "AL",
+          "DJ": ""
+        },
+        {
+          "time": "8 PM - 11 PM (3 Hr)",
+          "Ivan": " ",
+          "Shawn": " ",
+          "DJ": ""
+        },
+        {
+          "time": "11 PM - 2 AM (3 Hr)",
+          "Ivan": " ",
+          "Shawn": " ",
+          "DJ": "10pm-1am"
+        }
+      ],
+      "Thursday": [
+        {
+          "time": "10 AM - 12 PM (2 hr)",
+          "Ivan": "10am-2pm",
+          "Shawn": "Rest Day",
+          "DJ": "✓"
+        },
+        {
+          "time": "1 PM - 5 PM (4 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": "✓"
+        },
+        {
+          "time": "5 PM - 7 PM (2 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": "✓"
+        },
+        {
+          "time": "8 PM - 2 AM (6 Hr)",
+          "Ivan": "8pm-1am",
+          "Shawn": "",
+          "DJ": ""
+        }
+      ],
+      "Friday": [
+        {
+          "time": "10 AM - 12 PM (2 hr)",
+          "Ivan": "10am-2pm",
+          "Shawn": "Rest Day",
+          "DJ": "✓"
+        },
+        {
+          "time": "1 PM - 5 PM (4 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": "✓"
+        },
+        {
+          "time": "5 PM - 7 PM (2 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": "✓"
+        },
+        {
+          "time": "8 PM - 2 AM (6 Hr)",
+          "Ivan": "8pm-1am",
+          "Shawn": "",
+          "DJ": ""
+        }
+      ],
+      "Saturday": [
+        {
+          "time": "10 AM - 12 PM (2 hr)",
+          "Ivan": "Rest Day",
+          "Shawn": "10:00am-4pm",
+          "DJ": "Rest Day"
+        },
+        {
+          "time": "1 PM - 5 PM (4 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": ""
+        },
+        {
+          "time": "5 PM - 7 PM (2 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": ""
+        },
+        {
+          "time": "8 PM - 2 AM (6 Hr)",
+          "Ivan": "",
+          "Shawn": "8pm-1am",
+          "DJ": ""
+        }
+      ],
+      "Sunday": [
+        {
+          "time": "10 AM - 12 PM (2 hr)",
+          "Ivan": "Rest Day",
+          "Shawn": "10:00am-4pm",
+          "DJ": "Rest Day"
+        },
+        {
+          "time": "1 PM - 5 PM (4 hr)",
+          "Ivan": "",
+          "Shawn": "",
+          "DJ": ""
+        }
+      ]
+    }
   }
 ]

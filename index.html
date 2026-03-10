@@ -152,18 +152,31 @@
                         </div>
                     </div>
                 <!-- Shift Matrix -->
-                <section class="shift-matrix">
-                    <h2 class="section-title">Shift Matrix (The Smart Rail)</h2>
-                    <div class="matrix-grid" id="roster-grid">
-                        <!-- headers -->
-                        <div class="matrix-header"></div>
-                        <div class="matrix-header">Mon</div>
-                        <div class="matrix-header">Tue</div>
-                        <div class="matrix-header knowledge-wednesday-header">Wed ✽</div>
-                        <div class="matrix-header">Thu</div>
-                        <div class="matrix-header">Fri</div>
-                        <div class="matrix-header">Sat</div>
-                        <div class="matrix-header">Sun</div>
+                <section class="roster-section">
+                    <div class="roster-header-actions">
+                        <div class="week-nav">
+                            <button class="nav-btn" onclick="changeWeek(-1)">
+                                <svg viewBox="0 0 24 24" fill="none" width="16" height="16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+                            </button>
+                            <span id="current-week-label" class="week-title">Loading...</span>
+                            <button class="nav-btn" onclick="changeWeek(1)">
+                                <svg viewBox="0 0 24 24" fill="none" width="16" height="16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+                            </button>
+                        </div>
+                        <div class="view-toggle">
+                            <button id="toggle-week" class="toggle-btn active" onclick="toggleRosterView('week')">Week View</button>
+                            <button id="toggle-month" class="toggle-btn" onclick="toggleRosterView('month')">Month View</button>
+                        </div>
+                    </div>
+
+                    <div id="roster-grid" class="matrix-grid glass">
+                        <!-- Matrix headers and cells injected by script.js -->
+                    </div>
+
+                    <div id="month-view" class="month-container glass" style="display: none;">
+                        <div class="month-grid-placeholder">
+                            <p>Full Month dynamic view is being calculated...</p>
+                        </div>
                     </div>
                 </section>
 
