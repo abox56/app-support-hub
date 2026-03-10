@@ -4,9 +4,43 @@ const fs = require('fs');
 const { TelegramClient, Api } = require("telegram");
 const { StringSession } = require("telegram/sessions");
 const { NewMessage } = require("telegram/events");
+const sqlite3 = require('sqlite3').verbose();
+const { open } = require('sqlite');
 
 const app = express();
 app.use(express.json());
+
+// Database Initialization
+let db;
+(async () => {
+    db = await open({
+        filename: path.join(__dirname, 'hub_storage.db'),
+        driver: sqlite3.Database
+    });
+
+    await db.exec(`
+        CREATE TABLE IF NOT EXISTS incidents (
+            id TEXT PRIMARY KEY,
+            first_timestamp TEXT,
+            last_update TEXT,
+            category TEXT,
+            main_content TEXT,
+            status TEXT,
+            assigned_to TEXT,
+            source TEXT,
+            duration_minutes INTEGER
+        );
+        CREATE TABLE IF NOT EXISTS incident_updates (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            incident_id TEXT,
+            timestamp TEXT,
+            sender TEXT,
+            content TEXT,
+            FOREIGN KEY(incident_id) REFERENCES incidents(id)
+        );
+    `);
+    console.log("✅ SQLite Database initialized.");
+})();
 
 const PORT = process.env.PORT || 8000;
 const HUB_PASSWORD = process.env.HUB_PASSWORD || "Cloudway2026!";
@@ -40,7 +74,50 @@ const apiHash = process.env.TG_API_HASH || "cbb4b1ed8cf7605931c48a56140366d7";
 const stringSession = new StringSession(process.env.TG_SESSION || "");
 
 let tgClient;
+async function addTelegramIncident(groupTitle, senderName, content) {
+    const category = categorizeIncident(content);
+    const now = new Date();
+    const TWO_HOURS_AGO = new Date(now.getTime() - (2 * 60 * 60 * 1000)).toISOString();
 
+    // Check for existing incident in the last 2 hours
+    const existing = await db.get(
+        `SELECT id FROM incidents 
+         WHERE source = ? AND category = ? AND last_update > ? AND status != 'Resolved'
+         LIMIT 1`,
+        [groupTitle, category, TWO_HOURS_AGO]
+    );
+
+    if (existing) {
+        // Update existing thread
+        await db.run(
+            `INSERT INTO incident_updates (incident_id, timestamp, sender, content) VALUES (?, ?, ?, ?)`,
+            [existing.id, now.toISOString(), senderName, content]
+        );
+        await db.run(
+            `UPDATE incidents SET last_update = ?, status = 'In Progress' WHERE id = ?`,
+            [now.toISOString(), existing.id]
+        );
+    } else {
+        // Create new incident
+        const id = Date.now().toString();
+        await db.run(
+            `INSERT INTO incidents (id, first_timestamp, last_update, category, main_content, status, assigned_to, source, duration_minutes)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [id, now.toISOString(), now.toISOString(), category, content, 'Captured', 'Pending Review', groupTitle, 0]
+        );
+        await db.run(
+            `INSERT INTO incident_updates (incident_id, timestamp, sender, content) VALUES (?, ?, ?, ?)`,
+            [id, now.toISOString(), senderName, content]
+        );
+    }
+
+    // RETENTION: Cleanup incidents older than 90 days
+    const NINETY_DAYS_AGO = new Date(now.getTime() - (90 * 24 * 60 * 60 * 1000)).toISOString();
+    await db.run(`DELETE FROM incident_updates WHERE incident_id IN (SELECT id FROM incidents WHERE last_update < ?)`, [NINETY_DAYS_AGO]);
+    await db.run(`DELETE FROM incidents WHERE last_update < ?`, [NINETY_DAYS_AGO]);
+}
+
+// Telegram Passive Listener
 async function initTelegram() {
     tgClient = new TelegramClient(stringSession, apiId, apiHash, {
         connectionRetries: 5,
@@ -48,11 +125,9 @@ async function initTelegram() {
     await tgClient.connect();
     console.log("✅ Connected to Telegram as user.");
 
-    // Passive Listener for Group Events
     tgClient.addEventHandler(async (event) => {
         const message = event.message;
         if (!message || !message.text) return;
-
         const chat = await message.getChat();
         const sender = await message.getSender();
 
@@ -60,82 +135,16 @@ async function initTelegram() {
             const groupTitle = chat.title || "Unknown Group";
             const senderName = sender ? (sender.firstName || sender.username || "Unknown") : "Unknown";
             const content = message.text.trim();
-            const category = categorizeIncident(content);
-
-            console.log(`📩 Auto-captured from [${groupTitle}] by [${senderName}]: ${content.substring(0, 50)}...`);
-
-            const incidents = readIncidents();
-            const now = new Date();
             
-            // GROUPING LOGIC: Find an incident in the same group + same category within the last 2 hours
-            const TWO_HOURS = 2 * 60 * 60 * 1000;
-            const existingIncident = incidents.find(inc => 
-                inc.source === groupTitle && 
-                inc.category === category && 
-                (now - new Date(inc.last_update)) < TWO_HOURS &&
-                inc.status !== 'Resolved'
-            );
-
-            if (existingIncident) {
-                // ADD TO THREAD
-                existingIncident.updates.push({
-                    timestamp: now.toISOString(),
-                    sender: senderName,
-                    content: content
-                });
-                existingIncident.last_update = now.toISOString();
-                existingIncident.status = 'In Progress'; // Auto-escalate if new message comes in
-            } else {
-                // CREATE NEW GROUPED INCIDENT
-                const newIncident = {
-                    id: Date.now().toString(),
-                    first_timestamp: now.toISOString(),
-                    last_update: now.toISOString(),
-                    category: category,
-                    main_content: content,
-                    status: 'Captured',
-                    assigned_to: 'Pending Review',
-                    source: groupTitle, // Group name
-                    updates: [{
-                        timestamp: now.toISOString(),
-                        sender: senderName,
-                        content: content
-                    }],
-                    duration_minutes: 0
-                };
-                incidents.push(newIncident);
-            }
-            writeIncidents(incidents);
+            console.log(`📩 Auto-captured from [${groupTitle}] by [${senderName}]: ${content.substring(0, 50)}...`);
+            await addTelegramIncident(groupTitle, senderName, content);
         }
     }, new NewMessage({}));
 }
-
 initTelegram();
 
 // Serve static files from the current directory
 app.use(express.static(path.join(__dirname)));
-
-// Incident Database Helpers
-const INCIDENTS_FILE = path.join(__dirname, 'incidents.json');
-
-function readIncidents() {
-    try {
-        if (!fs.existsSync(INCIDENTS_FILE)) return [];
-        return JSON.parse(fs.readFileSync(INCIDENTS_FILE));
-    } catch (e) { return []; }
-}
-
-function writeIncidents(data) {
-    // RETENTION POLICY: Keep only last 90 days (3 months)
-    const NINETY_DAYS = 90 * 24 * 60 * 60 * 1000;
-    const now = new Date();
-    const filteredData = data.filter(inc => {
-        const incDate = new Date(inc.last_update || inc.first_timestamp || inc.timestamp);
-        return (now - incDate) < NINETY_DAYS;
-    });
-
-    fs.writeFileSync(INCIDENTS_FILE, JSON.stringify(filteredData, null, 2));
-}
 
 // Simple categorization engine
 function categorizeIncident(content) {
@@ -169,38 +178,37 @@ app.post('/api/send-handover', async (req, res) => {
     }
 });
 
-// API: Get all incidents
-app.get('/api/incidents', (req, res) => {
-    res.json(readIncidents());
+// API: Get all incidents (last 100 for feed)
+app.get('/api/incidents', async (req, res) => {
+    try {
+        const incidents = await db.all(`SELECT * FROM incidents ORDER BY last_update DESC LIMIT 100`);
+        // Attach updates to each incident
+        for (let inc of incidents) {
+            inc.updates = await db.all(`SELECT * FROM incident_updates WHERE incident_id = ? ORDER BY timestamp ASC`, [inc.id]);
+        }
+        res.json(incidents);
+    } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // API: Log a new incident (Manual)
-app.post('/api/incidents', (req, res) => {
+app.post('/api/incidents', async (req, res) => {
     const { content, assigned_to } = req.body;
     if (!content) return res.status(400).json({ error: "Content is required" });
 
-    const incidents = readIncidents();
     const now = new Date();
-    const newIncident = {
-        id: Date.now().toString(),
-        first_timestamp: now.toISOString(),
-        last_update: now.toISOString(),
-        category: categorizeIncident(content),
-        main_content: content,
-        status: 'Active',
-        assigned_to: assigned_to || 'Unassigned',
-        source: 'Manual Input',
-        updates: [{
-            timestamp: now.toISOString(),
-            sender: assigned_to || 'System',
-            content: content
-        }],
-        duration_minutes: 0
-    };
-
-    incidents.push(newIncident);
-    writeIncidents(incidents);
-    res.json(newIncident);
+    const id = Date.now().toString();
+    try {
+        await db.run(
+            `INSERT INTO incidents (id, first_timestamp, last_update, category, main_content, status, assigned_to, source, duration_minutes)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [id, now.toISOString(), now.toISOString(), categorizeIncident(content), content, 'Active', assigned_to || 'Unassigned', 'Manual Input', 0]
+        );
+        await db.run(
+            `INSERT INTO incident_updates (incident_id, timestamp, sender, content) VALUES (?, ?, ?, ?)`,
+            [id, now.toISOString(), assigned_to || 'System', content]
+        );
+        res.json({ id, success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // Roster Database Helpers
