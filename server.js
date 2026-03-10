@@ -19,41 +19,54 @@ const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
 let db;
 (async () => {
-    const useMySQL = !!(process.env.MYSQLHOST || process.env.DATABASE_URL || process.env.MYSQL_URL);
+    const useMySQL = !!(process.env.MYSQLHOST || process.env.DATABASE_URL || process.env.MYSQL_URL || process.env.MYSQL_PRIVATE_URL);
 
     if (useMySQL) {
         console.log("💎 MySQL Configuration Detected. (Railway Mode)");
         try {
-            const pool = mysql.createPool(process.env.DATABASE_URL || {
+            const connectionString = process.env.MYSQL_PRIVATE_URL || process.env.MYSQL_URL || process.env.DATABASE_URL;
+            const config = connectionString ? connectionString : {
                 host: process.env.MYSQLHOST,
                 user: process.env.MYSQLUSER,
                 password: process.env.MYSQLPASSWORD,
                 database: process.env.MYSQLDATABASE,
                 port: process.env.MYSQLPORT || 3306,
-                waitForConnections: true,
-                connectionLimit: 10,
-                queueLimit: 0
-            });
+                ssl: { rejectUnauthorized: false } // Required for some remote DBs
+            };
 
-            // SQLite Shim for MySQL
+            const pool = mysql.createPool(config);
+
+            // Test connection
+            await pool.query('SELECT 1');
+            console.log("✅ MySQL Connection Test Passed.");
+
+            // Unified DB Shim (MySQL uses query/execute with different param handling than SQLite)
             db = {
-                all: async (sql, params) => {
+                all: async (sql, params = []) => {
                     const [rows] = await pool.execute(sql, params);
                     return rows;
                 },
-                get: async (sql, params) => {
+                get: async (sql, params = []) => {
                     const [rows] = await pool.execute(sql, params);
                     return rows[0];
                 },
-                run: async (sql, params) => {
+                run: async (sql, params = []) => {
                     const [result] = await pool.execute(sql, params);
                     return { lastID: result.insertId, changes: result.affectedRows };
                 },
                 exec: async (sql) => {
-                    // Split multiple statements if any, but pool.execute is single.
-                    // For init, we can split by ; and run individually or use multipleStatements: true
+                    // For massive schema init, we split and use query
                     const statements = sql.split(';').filter(s => s.trim().length > 0);
-                    for (let s of statements) await pool.execute(s);
+                    for (let s of statements) {
+                        try {
+                            await pool.query(s);
+                            console.log(`🛠️ Table/Index created: ${s.substring(0, 40).replace(/\n/g, ' ')}...`);
+                        } catch (err) {
+                            if (!err.message.includes("already exists")) {
+                                console.error(`⚠️ Schema warning: ${err.message}`);
+                            }
+                        }
+                    }
                 }
             };
 
@@ -83,9 +96,10 @@ let db;
                     INDEX(incident_id)
                 );
             `);
-            console.log("✅ MySQL Database initialized and connected.");
+            console.log("✅ MySQL Database schema fully initialized.");
         } catch (e) {
-            console.error("❌ MySQL Init Failed, falling back to SQLite if available:", e.message);
+            console.error("❌ MySQL Init Failed:", e.message);
+            db = null; // Ensure fallback happens
         }
     }
 
