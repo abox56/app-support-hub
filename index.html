@@ -27,7 +27,7 @@
             <div class="header-center">
                 <div class="active-pic">
                     <div class="pic-label">ACTIVE PIC</div>
-                    <div class="pic-name" id="current-pic">Shawn</div>
+                    <div class="pic-name" id="current-pic">--</div>
                 </div>
             </div>
             
@@ -118,15 +118,15 @@
                     <div class="live-status-bar">
                         <div class="status-widget glass">
                             <span class="widget-label">Active Incidents</span>
-                            <span class="widget-value critical">2</span>
+                            <span class="widget-value" id="active-incidents-count">0</span>
                         </div>
                         <div class="status-widget glass">
                             <span class="widget-label">Shift Focus</span>
-                            <span class="widget-value">Cloudway Migration Support</span>
+                            <span class="widget-value" id="shift-focus-text">--</span>
                         </div>
                         <div class="status-widget glass">
                             <span class="widget-label">Next Handover</span>
-                            <span class="widget-value" id="handover-timer">03:42:15</span>
+                            <span class="widget-value" id="handover-timer">--:--:--</span>
                         </div>
                     </div>
 
@@ -162,37 +162,8 @@
                 <!-- Time Bank Component -->
                 <section class="time-bank">
                     <h2 class="section-title">Time Bank (Fairness Engine)</h2>
-                    <div class="time-bank-list glass">
-                        <!-- Ivan -->
-                        <div class="time-bank-item">
-                            <div class="tb-info">
-                                <span class="tb-name">Ivan</span>
-                                <span class="tb-balance positive">+4h</span>
-                            </div>
-                            <div class="tb-bar-container">
-                                <div class="tb-bar positive-bar" style="width: 60%;"></div>
-                            </div>
-                        </div>
-                        <!-- Shawn -->
-                        <div class="time-bank-item">
-                            <div class="tb-info">
-                                <span class="tb-name">Shawn</span>
-                                <span class="tb-balance negative">-8h</span>
-                            </div>
-                            <div class="tb-bar-container negative-container">
-                                <div class="tb-bar negative-bar" style="width: 30%;"></div>
-                            </div>
-                        </div>
-                        <!-- DJ -->
-                        <div class="time-bank-item">
-                            <div class="tb-info">
-                                <span class="tb-name">DJ</span>
-                                <span class="tb-balance neutral">0h</span>
-                            </div>
-                            <div class="tb-bar-container neutral-container">
-                                <div class="tb-bar neutral-bar" style="width: 50%;"></div>
-                            </div>
-                        </div>
+                    <div class="time-bank-list glass" id="time-bank-list">
+                        <div class="timeline-empty">System calculating balance...</div>
                     </div>
                 </section>
                 </div>
@@ -215,38 +186,10 @@
                                     <th>Last Update</th>
                                 </tr>
                             </thead>
-                            <tbody>
+                            <tbody id="ticketing-tbody">
+                                <!-- Populated dynamically -->
                                 <tr>
-                                    <td>Pragmatic Play</td>
-                                    <td>Ticket Mistally</td>
-                                    <td><span class="mono">#PP-8821</span></td>
-                                    <td><span class="badge priority-high">High</span></td>
-                                    <td><span class="badge status-investigating">Investigating</span></td>
-                                    <td>12 mins ago</td>
-                                </tr>
-                                <tr>
-                                    <td>Evolution</td>
-                                    <td>Stream Lag (Node-B)</td>
-                                    <td><span class="mono">#EVO-4102</span></td>
-                                    <td><span class="badge priority-critical">Critical</span></td>
-                                    <td><span class="badge status-pending">Pending</span></td>
-                                    <td>2 mins ago</td>
-                                </tr>
-                                <tr>
-                                    <td>Mistally Core</td>
-                                    <td>API Timeout</td>
-                                    <td><span class="mono">#MST-1109</span></td>
-                                    <td><span class="badge priority-medium">Medium</span></td>
-                                    <td><span class="badge status-resolved">Resolved</span></td>
-                                    <td>1h ago</td>
-                                </tr>
-                                <tr>
-                                    <td>PG Soft</td>
-                                    <td>Wallet Sync Error</td>
-                                    <td><span class="mono">#PG-9920</span></td>
-                                    <td><span class="badge priority-high">High</span></td>
-                                    <td><span class="badge status-investigating">Investigating</span></td>
-                                    <td>45 mins ago</td>
+                                    <td colspan="6" style="text-align:center; padding: 2rem; opacity: 0.5;">No active provider tickets reported.</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -293,26 +236,10 @@
                         </a>
                     </div>
 
-                    <div class="docs-grid">
+                    <div class="docs-grid" id="docs-grid">
                         <div class="doc-card glass">
-                            <div class="doc-type">PDF</div>
-                            <div class="doc-name">SOP: Incident Response v2.4</div>
-                        </div>
-                        <div class="doc-card glass">
-                            <div class="doc-type">DOCX</div>
-                            <div class="doc-name">Onboarding: App Support</div>
-                        </div>
-                        <div class="doc-card glass">
-                            <div class="doc-type">XLSX</div>
-                            <div class="doc-name">On-Call Roster Q2 2026</div>
-                        </div>
-                        <div class="doc-card glass">
-                            <div class="doc-type">PDF</div>
-                            <div class="doc-name">Security: Password Policy 2026</div>
-                        </div>
-                        <div class="doc-card glass">
-                            <div class="doc-type">DOCX</div>
-                            <div class="doc-name">SOP: Wallet Sync Troubleshooting</div>
+                            <div class="doc-type">HUB</div>
+                            <div class="doc-name">Knowledge base connected to SharePoint</div>
                         </div>
                     </div>
                 </div>
@@ -336,11 +263,10 @@
                 </div>
 
                 <!-- Recent Handover Brief -->
-                <div class="handover-brief glass">
-                    <h3 class="brief-title">Recent Handover</h3>
+                <div class="handover-brief glass" id="latest-handover-card">
+                    <h3 class="brief-title">Latest Handover</h3>
                     <div class="brief-content">
-                        <div class="brief-meta">Shawn → Ivan | 10:00 AM</div>
-                        <p class="brief-text">"SMI alerted high latency on node-B. Monitored for 30m, stabilized. DB heavy read load expected around 3PM."</p>
+                        <p class="brief-text" style="opacity: 0.6;">System ready for next shift finalize...</p>
                     </div>
                 </div>
                 

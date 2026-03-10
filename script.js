@@ -78,18 +78,32 @@ function startHandoverTimer() {
     const timerElement = document.getElementById('handover-timer');
     if (!timerElement) return;
 
-    let time = 3 * 3600 + 42 * 60 + 15; // 03:42:15 in seconds
+    // Logic to calculate time until next 8-hour shift change (fixed windows at 10am, 6pm, 2am)
+    function refreshTimer() {
+        const now = new Date();
+        const hour = now.getHours();
+        
+        let targetHour;
+        if (hour >= 2 && hour < 10) targetHour = 10;
+        else if (hour >= 10 && hour < 18) targetHour = 18;
+        else targetHour = 2; // Next day 2am
 
-    setInterval(() => {
-        time--;
-        if (time < 0) time = 8 * 3600; // Reset to 8h if reached zero
+        let targetDate = new Date();
+        if (targetHour === 2 && hour >= 18) targetDate.setDate(targetDate.getDate() + 1);
+        targetDate.setHours(targetHour, 0, 0, 0);
 
-        const h = Math.floor(time / 3600);
-        const m = Math.floor((time % 3600) / 60);
-        const s = time % 60;
+        let diff = Math.floor((targetDate - now) / 1000);
+        if (diff < 0) diff = 0;
+
+        const h = Math.floor(diff / 3600);
+        const m = Math.floor((diff % 3600) / 60);
+        const s = diff % 60;
 
         timerElement.textContent = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-    }, 1000);
+    }
+
+    refreshTimer();
+    setInterval(refreshTimer, 1000);
 }
 
 // Initialize
@@ -142,9 +156,31 @@ const savedTheme = localStorage.getItem('hub-theme');
 if (savedTheme) {
     document.body.setAttribute('data-theme', savedTheme);
     document.addEventListener('DOMContentLoaded', () => {
-        document.getElementById('theme-icon-dark').style.display = savedTheme === 'light' ? 'none' : 'block';
-        document.getElementById('theme-icon-light').style.display = savedTheme === 'light' ? 'block' : 'none';
+        const darkIcon = document.getElementById('theme-icon-dark');
+        const lightIcon = document.getElementById('theme-icon-light');
+        if (darkIcon) darkIcon.style.display = savedTheme === 'light' ? 'none' : 'block';
+        if (lightIcon) lightIcon.style.display = savedTheme === 'light' ? 'block' : 'none';
     });
+}
+
+function updateActivePIC(roster) {
+    const now = new Date();
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const currentDay = dayNames[now.getDay()];
+    const currentHour = now.getHours();
+
+    let shiftType = 'Early'; // default
+    if (currentHour >= 18 || currentHour < 2) shiftType = 'Late';
+    else if (currentHour >= 10 && currentHour < 18) shiftType = 'Early';
+    else shiftType = 'Utility / Wkend'; // 2am to 10am is technically utility or gap
+
+    const row = roster.find(r => r.rowLabel.includes(shiftType));
+    if (row) {
+        const dayIdx = (now.getDay() + 6) % 7; // Mon is 0
+        const pic = row.shifts[dayIdx];
+        const picElement = document.getElementById('current-pic');
+        if (picElement) picElement.textContent = pic || '--';
+    }
 }
 
 async function initRoster() {
@@ -180,6 +216,8 @@ async function initRoster() {
                 grid.appendChild(shiftDiv);
             });
         });
+
+        updateActivePIC(roster);
     } catch (err) {
         console.error('Failed to load roster:', err);
     }
@@ -210,6 +248,8 @@ async function initTimeline() {
         });
 
         updateStatPills(incidents);
+        const countElement = document.getElementById('active-incidents-count');
+        if (countElement) countElement.textContent = incidents.filter(i => i.status === 'Active' || i.status === 'Captured').length;
     } catch (err) {
         console.error('Failed to load incidents:', err);
     }
