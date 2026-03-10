@@ -133,8 +133,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
     initTimeline();
     initRoster();
-    loadSettings(); // Load Telegram link
+    loadSettings(); 
+    checkAIStatus();
 });
+
+async function checkAIStatus() {
+    try {
+        const response = await apiFetch('/api/ai-status');
+        const data = await response.json();
+        const statusPill = document.getElementById('ai-status-bar');
+        if (statusPill) {
+            statusPill.innerHTML = `
+                <span class="pulse-dot ${data.active ? 'online' : 'offline'}"></span>
+                CORE: ${data.engine}
+            `;
+            if (!data.active) statusPill.classList.add('warning');
+        }
+    } catch (e) {
+        console.error("Status check failed:", e);
+    }
+}
 
 function openModal(modalId) {
     document.getElementById(modalId)?.classList.add('active');
@@ -401,7 +419,7 @@ function renderIncidentCard(inc) {
     const footer = `
         <div class="incident-footer">
             <div class="incident-meta">
-                <span class="time-ago">Last update at ${timeStr}</span>
+                <span class="time-ago">Last update at ${timeStr} • Engine: ${inc.engine || 'Unknown'}</span>
                 <span class="source-group">${inc.source || 'Direct Hub'}</span>
             </div>
             ${isPIC() ? `<button class="notify-btn" onclick="resolveIncident('${inc.id}')">Resolve</button>` : ''}

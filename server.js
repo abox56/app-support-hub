@@ -34,7 +34,8 @@ let db;
             assigned_to TEXT,
             source TEXT,
             duration_minutes INTEGER,
-            message_ids TEXT
+            message_ids TEXT,
+            engine TEXT
         );
         CREATE TABLE IF NOT EXISTS incident_updates (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -83,8 +84,8 @@ const stringSession = new StringSession(process.env.TG_SESSION || "");
 
 let tgClient;
 async function analyzeMessageAI(content) {
-    if (!process.env.GEMINI_API_KEY) {
-        return { category: categorizeIncident(content), summary: content, isNoise: false };
+    if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === "") {
+        return { category: categorizeIncident(content), summary: content, isNoise: false, engine: 'Keywords' };
     }
 
     const prompt = `
@@ -109,10 +110,12 @@ async function analyzeMessageAI(content) {
         const result = await model.generateContent(prompt);
         const response = await result.response;
         const text = response.text().replace(/```json|```/g, "").trim();
-        return JSON.parse(text);
+        const data = JSON.parse(text);
+        data.engine = 'Gemini 1.5';
+        return data;
     } catch (e) {
         console.error("AI Analysis Failed:", e);
-        return { category: categorizeIncident(content), summary: content, isNoise: false };
+        return { category: categorizeIncident(content), summary: content, isNoise: false, engine: 'Keywords (Fallback)' };
     }
 }
 
@@ -154,9 +157,9 @@ async function addTelegramIncident(groupTitle, senderName, content, msgId, chatI
         // Create new incident
         const id = Date.now().toString();
         await db.run(
-            `INSERT INTO incidents (id, first_timestamp, last_update, category, main_content, ai_summary, status, assigned_to, source, duration_minutes, message_ids)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [id, now.toISOString(), now.toISOString(), analysis.category, content, analysis.summary, 'Captured', 'Pending Review', groupTitle, 0, JSON.stringify([msgId])]
+            `INSERT INTO incidents (id, first_timestamp, last_update, category, main_content, ai_summary, status, assigned_to, source, duration_minutes, message_ids, engine)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [id, now.toISOString(), now.toISOString(), analysis.category, content, analysis.summary, 'Captured', 'Pending Review', groupTitle, 0, JSON.stringify([msgId]), analysis.engine]
         );
         await db.run(
             `INSERT INTO incident_updates (incident_id, timestamp, sender, content, msg_id, chat_id) VALUES (?, ?, ?, ?, ?, ?)`,
@@ -200,6 +203,15 @@ initTelegram();
 
 // Serve static files from the current directory
 app.use(express.static(path.join(__dirname)));
+
+// API: AI Status
+app.get('/api/ai-status', (req, res) => {
+    const hasKey = !!process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== "";
+    res.json({ 
+        active: hasKey, 
+        engine: hasKey ? 'Gemini 1.5 Flash' : 'Keyword Fallback' 
+    });
+});
 
 // Simple categorization engine
 function categorizeIncident(content) {
@@ -256,9 +268,9 @@ app.post('/api/incidents', async (req, res) => {
 
     try {
         await db.run(
-            `INSERT INTO incidents (id, first_timestamp, last_update, category, main_content, ai_summary, status, assigned_to, source, duration_minutes, message_ids)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [id, now.toISOString(), now.toISOString(), analysis.category, content, analysis.summary, 'Active', assigned_to || 'Unassigned', 'Manual Input', 0, "[]"]
+            `INSERT INTO incidents (id, first_timestamp, last_update, category, main_content, ai_summary, status, assigned_to, source, duration_minutes, message_ids, engine)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [id, now.toISOString(), now.toISOString(), analysis.category, content, analysis.summary, 'Active', assigned_to || 'Unassigned', 'Manual Input', 0, "[]", analysis.engine]
         );
         await db.run(
             `INSERT INTO incident_updates (incident_id, timestamp, sender, content) VALUES (?, ?, ?, ?)`,
