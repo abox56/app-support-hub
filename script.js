@@ -135,6 +135,9 @@ document.addEventListener('DOMContentLoaded', () => {
     initRoster();
     loadSettings(); 
     checkAIStatus();
+
+    // Poll for new incidents every 30 seconds
+    setInterval(initTimeline, 30000);
 });
 
 async function checkAIStatus() {
@@ -382,6 +385,27 @@ async function initTimeline() {
             pulseZone.style.display = 'block';
         } else if (pulseZone) {
             pulseZone.style.display = 'none';
+        }
+
+        // Overdue Alert Banner Logic: Show if any critical task [PROVIDER_ALERTS] or [SYSTEM_LOGS] missed for 5 mins
+        const now = new Date();
+        const FIVE_MINS = 5 * 60 * 1000;
+        const overdueCriticals = incidents.filter(i => {
+            const firstTime = new Date(i.first_timestamp);
+            const isCriticalAI = i.category === '[PROVIDER_ALERTS]' || i.category === '[SYSTEM_LOGS]';
+            const isCriticalKeyword = i.category === 'SMI Monitoring' || i.category === 'System Infra' || i.category === 'Provider API';
+            return (isCriticalAI || isCriticalKeyword) && i.status !== 'Resolved' && (now - firstTime > FIVE_MINS);
+        });
+
+        const overdueBanner = document.getElementById('overdue-alert');
+        if (overdueBanner) {
+            if (overdueCriticals.length > 0) {
+                const countMsg = overdueCriticals.length === 1 ? '1 OVERDUE SUPPORT REQUEST' : `${overdueCriticals.length} OVERDUE SUPPORT REQUESTS`;
+                overdueBanner.querySelector('.alert-text').textContent = `CRITICAL: ${countMsg} REQUIRES IMMEDIATE ACTION`;
+                overdueBanner.style.display = 'flex';
+            } else {
+                overdueBanner.style.display = 'none';
+            }
         }
 
     } catch (err) {
