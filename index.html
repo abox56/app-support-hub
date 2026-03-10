@@ -124,6 +124,14 @@
                     </span>
                     <span class="tab-text">Analytics</span>
                 </button>
+                <button class="tab-button" onclick="switchTab('database', this)">
+                    <span class="tab-icon">
+                        <svg viewBox="0 0 24 24" fill="none" width="16" height="16">
+                            <path d="M12 2v20M4 7l8-3 8 3v10l-8 3-8-3V7z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </span>
+                    <span class="tab-text">Database</span>
+                </button>
                 <div class="tab-indicator"></div>
             </div>
 
@@ -323,6 +331,48 @@
                                 <span id="detection-source">Telegram (Passive)</span>
                             </div>
                         </div>
+                    </div>
+                </div>
+            <div class="tab-content" id="database-view">
+                <div class="database-container">
+                    <div class="section-header">
+                        <div class="header-main">
+                            <h2 class="section-title">Database Explorer (Raw Logs)</h2>
+                            <p class="section-subtitle">Viewing ALL captured messages from Telegram groups.</p>
+                        </div>
+                        <div class="header-actions">
+                            <button onclick="downloadDatabase()" class="download-link glass">
+                                <svg viewBox="0 0 24 24" fill="none" width="16" height="16" stroke="currentColor" stroke-width="2">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+                                </svg>
+                                Download .db Backup
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="ticketing-table-container glass">
+                        <table class="ticketing-table">
+                            <thead>
+                                <tr>
+                                    <th>Timestamp (SGT)</th>
+                                    <th>Source / Group</th>
+                                    <th>Sender</th>
+                                    <th>Category</th>
+                                    <th>Content</th>
+                                </tr>
+                            </thead>
+                            <tbody id="raw-logs-tbody">
+                                <!-- Populated dynamically -->
+                                <tr>
+                                    <td colspan="5" style="text-align:center; padding: 2rem; opacity: 0.5;">Loading raw data...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="pagination-footer">
+                        <button class="nav-btn glass" onclick="changeLogPage(-1)">Previous</button>
+                        <span id="log-page-num" class="page-count">Page 1</span>
+                        <button class="nav-btn glass" onclick="changeLogPage(1)">Next</button>
                     </div>
                 </div>
             </div>

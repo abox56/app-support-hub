@@ -8,6 +8,7 @@ const { StringSession } = require("telegram/sessions");
 const { NewMessage } = require("telegram/events");
 const sqlite3 = require('sqlite3').verbose();
 const { open } = require('sqlite');
+const mysql = require('mysql2/promise');
 
 const app = express();
 app.use(express.json());
@@ -18,41 +19,112 @@ const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
 let db;
 (async () => {
-    // Persistent DB path for Railway volumes (e.g., /data/hub_storage.db)
-    const dbPath = process.env.DB_PATH || path.join(__dirname, 'hub_storage.db');
-    
-    db = await open({
-        filename: dbPath,
-        driver: sqlite3.Database
-    });
+    const useMySQL = !!(process.env.MYSQLHOST || process.env.DATABASE_URL || process.env.MYSQL_URL);
 
-    await db.exec(`
-        CREATE TABLE IF NOT EXISTS incidents (
-            id TEXT PRIMARY KEY,
-            first_timestamp TEXT,
-            last_update TEXT,
-            category TEXT,
-            main_content TEXT,
-            ai_summary TEXT,
-            status TEXT,
-            assigned_to TEXT,
-            source TEXT,
-            duration_minutes INTEGER,
-            message_ids TEXT,
-            engine TEXT
-        );
-        CREATE TABLE IF NOT EXISTS incident_updates (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            incident_id TEXT,
-            timestamp TEXT,
-            sender TEXT,
-            content TEXT,
-            msg_id INTEGER,
-            chat_id TEXT,
-            FOREIGN KEY(incident_id) REFERENCES incidents(id)
-        );
-    `);
-    console.log(`✅ SQLite Database initialized at: ${dbPath}`);
+    if (useMySQL) {
+        console.log("💎 MySQL Configuration Detected. (Railway Mode)");
+        try {
+            const pool = mysql.createPool(process.env.DATABASE_URL || {
+                host: process.env.MYSQLHOST,
+                user: process.env.MYSQLUSER,
+                password: process.env.MYSQLPASSWORD,
+                database: process.env.MYSQLDATABASE,
+                port: process.env.MYSQLPORT || 3306,
+                waitForConnections: true,
+                connectionLimit: 10,
+                queueLimit: 0
+            });
+
+            // SQLite Shim for MySQL
+            db = {
+                all: async (sql, params) => {
+                    const [rows] = await pool.execute(sql, params);
+                    return rows;
+                },
+                get: async (sql, params) => {
+                    const [rows] = await pool.execute(sql, params);
+                    return rows[0];
+                },
+                run: async (sql, params) => {
+                    const [result] = await pool.execute(sql, params);
+                    return { lastID: result.insertId, changes: result.affectedRows };
+                },
+                exec: async (sql) => {
+                    // Split multiple statements if any, but pool.execute is single.
+                    // For init, we can split by ; and run individually or use multipleStatements: true
+                    const statements = sql.split(';').filter(s => s.trim().length > 0);
+                    for (let s of statements) await pool.execute(s);
+                }
+            };
+
+            await db.exec(`
+                CREATE TABLE IF NOT EXISTS incidents (
+                    id VARCHAR(255) PRIMARY KEY,
+                    first_timestamp VARCHAR(100),
+                    last_update VARCHAR(100),
+                    category VARCHAR(100),
+                    main_content TEXT,
+                    ai_summary TEXT,
+                    status VARCHAR(50),
+                    assigned_to VARCHAR(100),
+                    source VARCHAR(255),
+                    duration_minutes INT,
+                    message_ids TEXT,
+                    engine VARCHAR(50)
+                );
+                CREATE TABLE IF NOT EXISTS incident_updates (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    incident_id VARCHAR(255),
+                    timestamp VARCHAR(100),
+                    sender VARCHAR(255),
+                    content TEXT,
+                    msg_id BIGINT,
+                    chat_id VARCHAR(255),
+                    INDEX(incident_id)
+                );
+            `);
+            console.log("✅ MySQL Database initialized and connected.");
+        } catch (e) {
+            console.error("❌ MySQL Init Failed, falling back to SQLite if available:", e.message);
+        }
+    }
+
+    // Fallback or explicit SQLite 
+    if (!db) {
+        const dbPath = process.env.DB_PATH || path.join(__dirname, 'hub_storage.db');
+        db = await open({
+            filename: dbPath,
+            driver: sqlite3.Database
+        });
+
+        await db.exec(`
+            CREATE TABLE IF NOT EXISTS incidents (
+                id TEXT PRIMARY KEY,
+                first_timestamp TEXT,
+                last_update TEXT,
+                category TEXT,
+                main_content TEXT,
+                ai_summary TEXT,
+                status TEXT,
+                assigned_to TEXT,
+                source TEXT,
+                duration_minutes INTEGER,
+                message_ids TEXT,
+                engine TEXT
+            );
+            CREATE TABLE IF NOT EXISTS incident_updates (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                incident_id TEXT,
+                timestamp TEXT,
+                sender TEXT,
+                content TEXT,
+                msg_id INTEGER,
+                chat_id TEXT,
+                FOREIGN KEY(incident_id) REFERENCES incidents(id)
+            );
+        `);
+        console.log(`✅ SQLite Database initialized at: ${dbPath}`);
+    }
 })();
 
 const PORT = process.env.PORT || 8000;
@@ -308,12 +380,38 @@ app.post('/api/send-handover', async (req, res) => {
 app.get('/api/incidents', async (req, res) => {
     try {
         const incidents = await db.all(`SELECT * FROM incidents ORDER BY last_update DESC LIMIT 100`);
-        // Attach updates to each incident
         for (let inc of incidents) {
             inc.updates = await db.all(`SELECT * FROM incident_updates WHERE incident_id = ? ORDER BY timestamp ASC`, [inc.id]);
         }
         res.json(incidents);
     } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// API: Get Raw Message Logs (paginated)
+app.get('/api/raw-logs', async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 0;
+        const limit = 50;
+        const offset = page * limit;
+        const logs = await db.all(`
+            SELECT u.timestamp, u.sender, u.content, i.category, i.source 
+            FROM incident_updates u 
+            LEFT JOIN incidents i ON u.incident_id = i.id 
+            ORDER BY u.timestamp DESC LIMIT ? OFFSET ?`, 
+            [limit, offset]
+        );
+        res.json(logs);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// API: Download Database Backup
+app.get('/api/download-db', (req, res) => {
+    const dbPath = process.env.DB_PATH || path.join(__dirname, 'hub_storage.db');
+    if (fs.existsSync(dbPath)) {
+        res.download(dbPath, `hub_backup_${new Date().toISOString().split('T')[0]}.db`);
+    } else {
+        res.status(404).send("Database file not found.");
+    }
 });
 
 // API: Log a new incident (Manual)

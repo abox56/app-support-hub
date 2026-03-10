@@ -727,18 +727,68 @@ async function copyHandover() {
 }
 
 function switchTab(tabId, buttonElement) {
-    // Remove active class from all buttons and contents
     document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
 
-    // Add active class to clicked button and target content
     buttonElement.classList.add('active');
     document.getElementById(tabId + '-view').classList.add('active');
 
-    // Update tab indicator position and width
     const tabIndicator = document.querySelector('.tab-indicator');
     if (tabIndicator) {
         tabIndicator.style.left = buttonElement.offsetLeft + 'px';
         tabIndicator.style.width = buttonElement.offsetWidth + 'px';
     }
+
+    if (tabId === 'database') loadRawLogs();
+}
+
+let currentLogPage = 0;
+async function loadRawLogs() {
+    try {
+        const response = await apiFetch(`/api/raw-logs?page=${currentLogPage}`);
+        const logs = await response.json();
+        const tbody = document.getElementById('raw-logs-tbody');
+        if (!tbody) return;
+
+        if (logs.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 2rem; opacity: 0.5;">No records found for this page.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = logs.map(log => `
+            <tr>
+                <td style="font-family: monospace; font-size: 0.75rem;">${new Date(log.timestamp).toLocaleString('en-SG')}</td>
+                <td><span class="source-group">${log.source || 'Unknown'}</span></td>
+                <td>${log.sender}</td>
+                <td><span class="incident-category" style="font-size: 0.6rem; padding: 0.2rem 0.6rem;">${log.category || 'N/A'}</span></td>
+                <td style="font-size: 0.85rem; max-width: 400px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${log.content}">${log.content}</td>
+            </tr>
+        `).join('');
+        document.getElementById('log-page-num').textContent = `Page ${currentLogPage + 1}`;
+    } catch (e) { console.error("Failed to load logs:", e); }
+}
+
+function changeLogPage(dir) {
+    currentLogPage = Math.max(0, currentLogPage + dir);
+    loadRawLogs();
+}
+
+async function downloadDatabase() {
+    try {
+        const response = await fetch('/api/download-db', {
+            headers: { 'Authorization': HUB_PASSWORD }
+        });
+        if (response.ok) {
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `hub_backup_${new Date().toISOString().split('T')[0]}.db`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+        } else {
+            alert("Download failed: Unauthorized or file missing.");
+        }
+    } catch (e) { console.error("Download error:", e); }
 }
