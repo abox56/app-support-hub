@@ -15,13 +15,15 @@ async function apiFetch(url, options = {}) {
 
 function checkAccess() {
     if (!HUB_PASSWORD) {
-        const pass = prompt("Please enter HUB ACCESS PASSWORD:");
-        if (pass) {
-            HUB_PASSWORD = pass;
-            localStorage.setItem('hub_access_token', pass);
-            location.reload();
+        if (window.location.pathname !== '/login.html') {
+            window.location.href = '/login.html';
         }
     }
+}
+
+function logout() {
+    localStorage.removeItem('hub_access_token');
+    window.location.href = '/login.html';
 }
 
 function updateClock() {

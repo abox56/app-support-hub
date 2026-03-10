@@ -11,9 +11,10 @@ app.use(express.json());
 const PORT = process.env.PORT || 8000;
 const HUB_PASSWORD = process.env.HUB_PASSWORD || "Cloudway2026!";
 
-// Middleware to check for authentication
+// Middleware to check for authentication (Bypass for validation API)
 app.use((req, res, next) => {
-    // We allow static files to be served, but gate the API data
+    if (req.path === '/api/validate-password') return next();
+    
     if (req.path.startsWith('/api/')) {
         const clientKey = req.headers['authorization'];
         if (clientKey !== HUB_PASSWORD) {
@@ -21,6 +22,16 @@ app.use((req, res, next) => {
         }
     }
     next();
+});
+
+// API: Validate Password
+app.post('/api/validate-password', (req, res) => {
+    const { password } = req.body;
+    if (password === HUB_PASSWORD) {
+        res.json({ success: true });
+    } else {
+        res.status(401).json({ success: false, error: "Incorrect Hub Security Key" });
+    }
 });
 
 // Telegram Configuration

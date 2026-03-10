@@ -358,6 +358,13 @@
                     <input type="text" id="tg-link-input" class="settings-input" placeholder="@your_group_or_id">
                     <p class="settings-hint">Messages will be sent using your linked account. Use 'me' for Saved Messages.</p>
                 </div>
+                <div class="settings-group" style="margin-top: 2rem; border-top: 1px solid var(--border-color); padding-top: 2rem;">
+                    <label class="settings-label">Security</label>
+                    <button class="action-btn logout-btn" onclick="logout()" style="background: var(--red); width: 100%; color: #fff;">
+                        LOGOUT FROM HUB
+                    </button>
+                    <p class="settings-hint">This will clear your access session on this device.</p>
+                </div>
             </div>
             <div class="modal-footer">
                 <button class="modal-btn secondary" onclick="closeModal('settings-modal')">Cancel</button>

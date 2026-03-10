@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hub Security | Access Required</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="login-page">
+    <div class="login-container">
+        <div class="login-card glass">
+            <div class="login-header">
+                <img src="https://cloudway.net/assets/icn-logo-white@2x-33fad41a.png" alt="Cloudway Logo" class="login-logo">
+                <h1>APPLICATION SUPPORT HUB</h1>
+                <p>SECURE ACCESS ONLY</p>
+            </div>
+            
+            <form id="login-form" class="login-form">
+                <div class="input-group">
+                    <label for="password">ACCESS KEY</label>
+                    <input type="password" id="password" placeholder="••••••••••••" required autofocus>
+                </div>
+                <div id="login-error" class="login-error"></div>
+                <button type="submit" id="login-btn" class="login-btn">
+                    <span>AUTHENTICATE</span>
+                    <svg viewBox="0 0 24 24" fill="none" width="20" height="20">
+                        <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
+            </form>
+            
+            <div class="login-footer">
+                <p>© 2026 Cloudway Operations. System monitored for security.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Check if already logged in
+        if (localStorage.getItem('hub_access_token')) {
+            window.location.href = '/';
+        }
+
+        const form = document.getElementById('login-form');
+        const errorDiv = document.getElementById('login-error');
+        const btn = document.getElementById('login-btn');
+
+        form.onsubmit = async (e) => {
+            e.preventDefault();
+            const password = document.getElementById('password').value;
+            
+            errorDiv.textContent = '';
+            btn.classList.add('loading');
+            btn.disabled = true;
+
+            try {
+                const response = await fetch('/api/validate-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    localStorage.setItem('hub_access_token', password);
+                    window.location.href = '/';
+                } else {
+                    errorDiv.textContent = data.error || 'Invalid Security Key';
+                }
+            } catch (err) {
+                errorDiv.textContent = 'Server connection failed';
+            } finally {
+                btn.classList.remove('loading');
+                btn.disabled = false;
+            }
+        };
+    </script>
+</body>
+</html>
