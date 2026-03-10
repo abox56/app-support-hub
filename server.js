@@ -151,6 +151,51 @@ app.post('/api/incidents', (req, res) => {
     res.json(newIncident);
 });
 
+// Roster Database Helpers
+const ROSTER_FILE = path.join(__dirname, 'roster.json');
+
+function readRoster() {
+    try {
+        if (!fs.existsSync(ROSTER_FILE)) {
+            const defaultRoster = [
+                {
+                    rowLabel: "Early",
+                    timeLabel: "10am - 6pm",
+                    shifts: ["Ivan", "Shawn", "NO LEAVE<br/>KNOWLEDGE UPGRADE", "DJ", "Ivan", "-", "-"]
+                },
+                {
+                    rowLabel: "Late",
+                    timeLabel: "6pm - 1am",
+                    shifts: ["DJ", "Ivan", "Shawn", "Ivan", "DJ", "-", "-"]
+                },
+                {
+                    rowLabel: "Utility / Wkend",
+                    timeLabel: "",
+                    shifts: ["Shawn", "DJ", "Ivan", "Shawn", "Shawn", "DJ", "Ivan"]
+                }
+            ];
+            writeRoster(defaultRoster);
+            return defaultRoster;
+        }
+        return JSON.parse(fs.readFileSync(ROSTER_FILE));
+    } catch (e) { return []; }
+}
+
+function writeRoster(data) {
+    fs.writeFileSync(ROSTER_FILE, JSON.stringify(data, null, 2));
+}
+
+// API: Get roster
+app.get('/api/roster', (req, res) => {
+    res.json(readRoster());
+});
+
+// API: Update roster
+app.post('/api/roster', (req, res) => {
+    writeRoster(req.body);
+    res.json({ success: true, message: "Roster updated successfully" });
+});
+
 // Fallback to index.html for unknown routes (SPA style)
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));

@@ -111,6 +111,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     initTimeline();
+    initRoster();
     loadSettings(); // Load Telegram link
 });
 
@@ -144,6 +145,44 @@ if (savedTheme) {
         document.getElementById('theme-icon-dark').style.display = savedTheme === 'light' ? 'none' : 'block';
         document.getElementById('theme-icon-light').style.display = savedTheme === 'light' ? 'block' : 'none';
     });
+}
+
+async function initRoster() {
+    try {
+        const response = await apiFetch('/api/roster');
+        const roster = await response.json();
+        const grid = document.getElementById('roster-grid');
+        if (!grid) return;
+
+        // Keep headers, clear the rest
+        const headers = Array.from(grid.querySelectorAll('.matrix-header'));
+        grid.innerHTML = '';
+        headers.forEach(h => grid.appendChild(h));
+
+        const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+        roster.forEach(row => {
+            const labelDiv = document.createElement('div');
+            labelDiv.className = 'matrix-row-label';
+            labelDiv.innerHTML = `${row.rowLabel}<br/><span>${row.timeLabel}</span>`;
+            grid.appendChild(labelDiv);
+
+            row.shifts.forEach((shiftText, index) => {
+                const shiftDiv = document.createElement('div');
+                shiftDiv.className = 'shift-card';
+                if (shiftText === '-') shiftDiv.classList.add('off-day');
+                if (shiftText.includes('KNOWLEDGE UPGRADE')) shiftDiv.classList.add('knowledge-wednesday');
+                if (row.rowLabel === 'Early' && days[index] === 'Mon') shiftDiv.classList.add('peak-window');
+                if (row.rowLabel === 'Early' && days[index] === 'Tue') shiftDiv.classList.add('selected-active');
+
+                shiftDiv.setAttribute('data-day', days[index]);
+                shiftDiv.innerHTML = shiftText;
+                grid.appendChild(shiftDiv);
+            });
+        });
+    } catch (err) {
+        console.error('Failed to load roster:', err);
+    }
 }
 
 async function initTimeline() {

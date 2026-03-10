@@ -1,0 +1,41 @@
+[
+  {
+    "rowLabel": "Early",
+    "timeLabel": "10am - 6pm",
+    "shifts": [
+      "Ivan",
+      "Shawn",
+      "NO LEAVE<br/>KNOWLEDGE UPGRADE",
+      "DJ",
+      "Ivan",
+      "-",
+      "-"
+    ]
+  },
+  {
+    "rowLabel": "Late",
+    "timeLabel": "6pm - 1am",
+    "shifts": [
+      "DJ",
+      "Ivan",
+      "Shawn",
+      "Ivan",
+      "DJ",
+      "-",
+      "-"
+    ]
+  },
+  {
+    "rowLabel": "Utility / Wkend",
+    "timeLabel": "",
+    "shifts": [
+      "Shawn",
+      "DJ",
+      "Ivan",
+      "Shawn",
+      "Shawn",
+      "DJ",
+      "Ivan"
+    ]
+  }
+]
