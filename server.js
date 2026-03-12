@@ -198,6 +198,44 @@ let db;
         `);
         console.log(`✅ SQLite Database initialized at: ${dbPath}`);
     }
+
+    // --- Seeding Roster ---
+    try {
+        const rosterCount = await db.get(`SELECT COUNT(*) as count FROM roster_weeks`);
+        if (rosterCount && rosterCount.count === 0) {
+            console.log("🌱 Seeding roster data from roster.json...");
+            const ROSTER_FILE = path.join(__dirname, 'roster.json');
+            if (fs.existsSync(ROSTER_FILE)) {
+                const rosterData = JSON.parse(fs.readFileSync(ROSTER_FILE, 'utf8'));
+                for (let week of rosterData) {
+                    if (!week.title || week.title.trim() === "" || week.title.trim() === " ") continue;
+                    
+                    const wRes = await db.run(`INSERT INTO roster_weeks (title, date_range) VALUES (?, ?)`, [week.title, week.dateRange]);
+                    const weekId = wRes.lastID;
+                    
+                    if (week.days) {
+                        for (let day of Object.keys(week.days)) {
+                            if (day.length > 20) continue; 
+                            for (let slot of week.days[day]) {
+                                const time = slot.time;
+                                for (let person of ["Ivan", "Shawn", "DJ"]) {
+                                    if (slot[person] !== undefined) {
+                                        await db.run(
+                                            `INSERT INTO roster_shifts (week_id, day_name, time_slot, person_name, shift_status) VALUES (?, ?, ?, ?, ?)`,
+                                            [weekId, day, time, person, slot[person]]
+                                        );
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                console.log("✅ Roster seeding complete.");
+            }
+        }
+    } catch (e) {
+        console.error("❌ Failed to seed roster:", e.message);
+    }
 })();
 
 const PORT = process.env.PORT || 8000;
