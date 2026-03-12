@@ -792,3 +792,117 @@ async function downloadDatabase() {
         }
     } catch (e) { console.error("Download error:", e); }
 }
+
+// -----------------------------------------------------
+// Auto Shift Simulator Engine
+// -----------------------------------------------------
+function generateAutoShift(teamList, holidayList, leaveData, year, month) {
+  const calendar = {};
+  const daysInMonth = new Date(year, month, 0).getDate();
+  
+  let firstWednesdayFound = false;
+  let firstWednesdayDate = null;
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    const currentDate = new Date(year, month - 1, day);
+    const dateString = currentDate.toISOString().split('T')[0];
+    const dayOfWeek = currentDate.getDay();
+    
+    if (dayOfWeek === 3 && !firstWednesdayFound) {
+      firstWednesdayFound = true;
+      firstWednesdayDate = dateString;
+    }
+
+    const isPH = holidayList.includes(dateString);
+    calendar[dateString] = {
+        day: currentDate.toLocaleDateString("en-US", { weekday: 'short' }),
+        roster: []
+    };
+
+    teamList.forEach(user => {
+      let userSchedule = { name: user, assignments: [], tags: [] };
+      const hasAL = leaveData[user] && leaveData[user][dateString] === 'AL';
+      const hasMC = leaveData[user] && leaveData[user][dateString] === 'MC';
+      let policyConflict = false;
+
+      if (dateString === firstWednesdayDate && hasAL && !isPH) {
+          userSchedule.tags.push("Policy Conflict: AL denied on 1st Wednesday Sync");
+          policyConflict = true;
+      }
+
+      const isOfflineForDay = (hasAL && !policyConflict) || hasMC || isPH;
+      if (isOfflineForDay) {
+          userSchedule.assignments.push(isPH ? "Public Holiday" : (hasAL ? "Annual Leave" : "Medical Leave"));
+      }
+
+      if ((dayOfWeek === 0 || dayOfWeek === 6) && user === 'Shawn') {
+          const randomlyAssigned = Math.random() <= 0.7;
+          if (randomlyAssigned && !isOfflineForDay) {
+              userSchedule.assignments.push("Utility_Weekend");
+              userSchedule.tags.push("Weight Rule Applied (0.7)");
+          }
+      }
+
+      if (dayOfWeek === 3 && !isOfflineForDay) {
+          userSchedule.assignments.push("OfficeSession (14:00-16:00)");
+      }
+
+      if (userSchedule.assignments.length === 0) {
+          userSchedule.assignments.push("Regular Shift");
+      }
+
+      calendar[dateString].roster.push(userSchedule);
+    });
+  }
+  return calendar;
+}
+
+function renderAutoShiftUI() {
+    const teamList = ['Ivan', 'Shawn', 'DJ'];
+    // For demonstration: Let's use April 2026, where Apr 1 is a Wednesday!
+    const holidayList = ['2026-04-04']; 
+    const leaveData = {
+        'Ivan': { '2026-04-01': 'AL' }, // The conflict!
+        'DJ': { '2026-04-03': 'MC' }
+    };
+
+    const uiCalendarData = generateAutoShift(teamList, holidayList, leaveData, 2026, 4);
+    const grid = document.getElementById('autoshift-grid');
+    if (!grid) return;
+    
+    grid.innerHTML = '';
+    grid.classList.remove('disabled');
+
+    Object.keys(uiCalendarData).forEach(dateStr => {
+        const dayInfo = uiCalendarData[dateStr];
+        
+        let rosterHtml = '';
+        dayInfo.roster.forEach(r => {
+            let tagsHtml = r.tags.map(t => {
+                let cssClass = t.includes('Policy Conflict') ? 'tag-policy-conflict' : 'tag-weight-rule';
+                return `<span class="autoshift-tag ${cssClass}">${t}</span>`;
+            }).join('');
+            
+            rosterHtml += `
+                <div class="autoshift-person-row">
+                    <div class="autoshift-person-name">${r.name}</div>
+                    <div class="autoshift-assignment">${r.assignments.join(', ')}</div>
+                    ${tagsHtml}
+                </div>
+            `;
+        });
+
+        const card = document.createElement('div');
+        card.className = 'autoshift-day-card glass';
+        card.innerHTML = `
+            <div class="autoshift-date-header">
+                <span class="autoshift-date">${dateStr.split('-')[2]}</span>
+                <span class="autoshift-day-name">${dayInfo.day}</span>
+            </div>
+            <div style="margin-top: 1rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                ${rosterHtml}
+            </div>
+        `;
+        grid.appendChild(card);
+    });
+}
