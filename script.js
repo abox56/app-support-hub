@@ -409,7 +409,9 @@ async function initTimeline() {
         const incidents = await response.json();
 
         const feed = document.getElementById('incident-feed');
+        const timelineFeed = document.getElementById('timeline-feed');
         if (feed) feed.innerHTML = ''; 
+        if (timelineFeed) timelineFeed.innerHTML = '';
 
         incidents.forEach(inc => {
             renderIncidentCard(inc);
@@ -495,7 +497,17 @@ function renderIncidentCard(inc) {
     `;
 
     card.innerHTML = header + body + footer;
-    feed.appendChild(card);
+    
+    // Add to main dashboard feed
+    if (feed) {
+        feed.appendChild(card.cloneNode(true));
+    }
+    
+    // Add to ops panel timeline feed
+    const timelineFeed = document.getElementById('timeline-feed');
+    if (timelineFeed) {
+        timelineFeed.appendChild(card);
+    }
 }
 
 function isPIC() {
