@@ -15,8 +15,9 @@ app.use(express.json());
 
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }); // Fallback / current
-const model2 = genAI.getGenerativeModel({ model: "gemini-2.0-flash" }); // Newest (usually what people want when saying "3.1 high speed")
+const primaryModel = genAI.getGenerativeModel({ model: "gemini-3-flash" }); 
+const secondaryModel = genAI.getGenerativeModel({ model: "gemini-2.0-flash" }); 
+const fallbackModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }); 
 
 
 let db;
@@ -296,33 +297,40 @@ async function analyzeMessageAI(content) {
     `;
 
     try {
-        // We Use the latest requested model first
-        const result = await model2.generateContent(prompt);
+        // 1. PRIMARY: Gemini 3 Flash
+        const result = await primaryModel.generateContent(prompt);
         const response = await result.response;
         let text = response.text().trim();
-        
-        // Clean markdown code blocks if AI included them
-        if (text.includes("```")) {
-            text = text.split("```")[1].replace(/^json/, "").trim();
-        }
-        
+        if (text.includes("```")) text = text.split("```")[1].replace(/^json/, "").trim();
         const data = JSON.parse(text);
-        data.engine = 'Gemini 2.0 Flash';
+        data.engine = 'Gemini 3 Flash';
         return data;
     } catch (e) {
-        console.error("AI Analysis (Primary) Failed:", e.message);
-        // Secondary attempt with 1.5-flash as fallback
+        console.error("AI Analysis (Gemini 3) Failed:", e.message);
         try {
-            const result = await model.generateContent(prompt);
+            // 2. SECONDARY: Gemini 2.0 Flash
+            const result = await secondaryModel.generateContent(prompt);
             const response = await result.response;
             let text = response.text().trim();
             if (text.includes("```")) text = text.split("```")[1].replace(/^json/, "").trim();
             const data = JSON.parse(text);
-            data.engine = 'Gemini 1.5 Flash';
+            data.engine = 'Gemini 2.0 Flash';
             return data;
         } catch (e2) {
-             console.error("AI Analysis (Fallback) Failed:", e2.message);
-             return { category: categorizeIncident(content), summary: content, isNoise: false, engine: 'Keywords (Fallback)' };
+            console.error("AI Analysis (Gemini 2.0) Failed:", e2.message);
+            try {
+                // 3. TERTIARY: Gemini 1.5 Flash
+                const result = await fallbackModel.generateContent(prompt);
+                const response = await result.response;
+                let text = response.text().trim();
+                if (text.includes("```")) text = text.split("```")[1].replace(/^json/, "").trim();
+                const data = JSON.parse(text);
+                data.engine = 'Gemini 1.5 Flash';
+                return data;
+            } catch (e3) {
+                 console.error("AI Analysis (Fallbacks) Failed:", e3.message);
+                 return { category: categorizeIncident(content), summary: content, isNoise: false, engine: 'Keywords (Fallback)' };
+            }
         }
     }
 }
