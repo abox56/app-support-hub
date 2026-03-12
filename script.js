@@ -821,7 +821,29 @@ function generateAutoShift(teamList, holidayList, leaveData, year, month) {
   const daysInMonth = new Date(year, month, 0).getDate();
   
   let firstWednesdayFound = false;
-  let firstWednesdayDate = null;
+      let firstWednesdayDate = null;
+
+  const weeklyRoles = {};
+  for (let w = 1; w <= 6; w++) {
+      let roles = ['Role A', 'Role B', 'Role C'];
+      let assignment = {};
+      
+      if (teamList.includes('Shawn')) {
+          let shawnRole = Math.random() <= 0.70 ? 'Role C' : (Math.random() < 0.5 ? 'Role A' : 'Role B');
+          assignment['Shawn'] = { role: shawnRole, weightApplied: shawnRole === 'Role C' };
+          roles.splice(roles.indexOf(shawnRole), 1);
+      }
+      
+      teamList.forEach(u => {
+          if (!assignment[u] && roles.length > 0) {
+              const r = roles.splice(Math.floor(Math.random() * roles.length), 1)[0];
+              assignment[u] = { role: r, weightApplied: false };
+          } else if (!assignment[u]) {
+              assignment[u] = { role: 'Role A', weightApplied: false };
+          }
+      });
+      weeklyRoles[w] = assignment;
+  }
 
   for (let day = 1; day <= daysInMonth; day++) {
     const currentDate = new Date(year, month - 1, day);
@@ -859,20 +881,37 @@ function generateAutoShift(teamList, holidayList, leaveData, year, month) {
           userSchedule.assignments.push(isPH ? "Public Holiday" : (hasAL ? "Annual Leave" : "Medical Leave"));
       }
 
-      if ((dayOfWeek === 0 || dayOfWeek === 6) && user === 'Shawn') {
-          const randomlyAssigned = Math.random() <= 0.7;
-          if (randomlyAssigned && !isOfflineForDay) {
-              userSchedule.assignments.push("Utility_Weekend");
-              userSchedule.tags.push("Weight Rule Applied (0.7)");
+      const weekIndex = Math.ceil(day / 7);
+      const userDef = weeklyRoles[weekIndex] ? weeklyRoles[weekIndex][user] : { role: 'Role A', weightApplied: false };
+      
+      if (!isOfflineForDay) {
+          if (userDef.role === 'Role C' && userDef.weightApplied && user === 'Shawn') {
+              userSchedule.tags.push("Weight Rule Applied (70%)");
           }
-      }
-
-      if (dayOfWeek === 3 && !isOfflineForDay) {
-          userSchedule.assignments.push("OfficeSession (14:00-16:00)");
-      }
-
-      if (userSchedule.assignments.length === 0) {
-          userSchedule.assignments.push("Regular Shift");
+          
+          if (userDef.role === 'Role A') {
+              if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+                  userSchedule.assignments.push("10AM-7PM (8h) | Break: 12PM-1PM");
+              } else {
+                  userSchedule.assignments.push("OFF");
+              }
+          } else if (userDef.role === 'Role B') {
+              if (dayOfWeek >= 1 && dayOfWeek <= 5 && dayOfWeek !== 3) {
+                  userSchedule.assignments.push("4PM-1AM (8h) | Break: 6PM-7PM");
+              } else if (dayOfWeek === 3) {
+                  userSchedule.assignments.push("2PM-4PM (2h), 7PM-1AM (6h)");
+              } else {
+                  userSchedule.assignments.push("OFF");
+              }
+          } else if (userDef.role === 'Role C') {
+              if (dayOfWeek >= 1 && dayOfWeek <= 5 && dayOfWeek !== 3) {
+                  userSchedule.assignments.push("Standby");
+              } else if (dayOfWeek === 3) {
+                  userSchedule.assignments.push("2PM-4PM");
+              } else {
+                  userSchedule.assignments.push("10AM-1AM (13h) | Break: 12PM-1PM, 7PM-8PM");
+              }
+          }
       }
 
       calendar[dateString].roster.push(userSchedule);
