@@ -95,6 +95,21 @@ let db;
                     chat_id VARCHAR(255),
                     INDEX(incident_id)
                 );
+                CREATE TABLE IF NOT EXISTS message_analysis_logs (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    msg_id BIGINT,
+                    chat_id VARCHAR(255),
+                    chat_title VARCHAR(255),
+                    sender VARCHAR(255),
+                    content TEXT,
+                    timestamp VARCHAR(100),
+                    ai_category VARCHAR(100),
+                    ai_summary TEXT,
+                    is_noise BOOLEAN,
+                    confidence INT,
+                    engine VARCHAR(50),
+                    processed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
             `);
             console.log("✅ MySQL Database schema fully initialized.");
         } catch (e) {
@@ -135,6 +150,21 @@ let db;
                 msg_id INTEGER,
                 chat_id TEXT,
                 FOREIGN KEY(incident_id) REFERENCES incidents(id)
+            );
+            CREATE TABLE IF NOT EXISTS message_analysis_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                msg_id INTEGER,
+                chat_id TEXT,
+                chat_title TEXT,
+                sender TEXT,
+                content TEXT,
+                timestamp TEXT,
+                ai_category TEXT,
+                ai_summary TEXT,
+                is_noise BOOLEAN,
+                confidence INTEGER,
+                engine TEXT,
+                processed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         `);
         console.log(`✅ SQLite Database initialized at: ${dbPath}`);
@@ -212,6 +242,30 @@ async function analyzeMessageAI(content) {
 async function addTelegramIncident(groupTitle, senderName, content, msgId, chatId) {
     const analysis = await analyzeMessageAI(content);
     const now = new Date();
+
+    // Insert into message_analysis_logs
+    try {
+        await db.run(
+            `INSERT INTO message_analysis_logs 
+            (msg_id, chat_id, chat_title, sender, content, timestamp, ai_category, ai_summary, is_noise, confidence, engine) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+                msgId, 
+                chatId ? chatId.toString() : null, 
+                groupTitle, 
+                senderName, 
+                content, 
+                now.toISOString(), 
+                analysis.category, 
+                analysis.summary || null, 
+                analysis.isNoise || false, 
+                analysis.confidence || 0, 
+                analysis.engine
+            ]
+        );
+    } catch (e) {
+        console.error("Failed to insert into message_analysis_logs:", e.message);
+    }
 
     // NEW PRESERVE-ALL LOGIC: No message is discarded.
     // Categorize into NOISE if identified, but still save for analysis.
