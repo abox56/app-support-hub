@@ -479,7 +479,7 @@ app.get('/api/ai-status', (req, res) => {
     const hasKey = !!process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== "";
     res.json({ 
         active: hasKey, 
-        engine: hasKey ? 'Gemini 1.5 Flash' : 'Keyword Fallback' 
+        engine: hasKey ? 'Gemini 3 Flash' : 'Keyword Fallback' 
     });
 });
 
