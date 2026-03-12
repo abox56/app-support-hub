@@ -231,6 +231,44 @@
                     </div>
                 </section>
                 </div>
+
+            <!-- Ops Panel -->
+            <aside class="ops-panel">
+                <h2 class="section-title">Ops & Integration</h2>
+                
+                <div class="ops-panel-info glass">
+                    <p class="ops-hint">Monitoring is now available in the dedicated tab above for an expanded view.</p>
+                </div>
+
+                <!-- Incident Timeline (NEW) -->
+                <div class="incident-timeline-container glass">
+                    <h3 class="brief-title">Live Incident Timeline</h3>
+                    <div class="timeline-feed" id="timeline-feed">
+                        <!-- Populated by script.js -->
+                        <div class="timeline-empty">Monitoring for incidents...</div>
+                    </div>
+                </div>
+
+                <!-- Recent Handover Brief -->
+                <div class="handover-brief glass" id="latest-handover-card">
+                    <h3 class="brief-title">Latest Handover</h3>
+                    <div class="brief-content">
+                        <p class="brief-text" style="opacity: 0.6;">System ready for next shift finalize...</p>
+                    </div>
+                </div>
+                
+                <button class="telegram-button glass" onclick="generateHandover()">
+                    <div class="tg-icon">
+                        <svg viewBox="0 0 24 24" fill="none" class="tg-svg">
+                            <path d="M21.5 2L2 10.5L8.5 13L11.5 21.5L14 15.5L21.5 2Z" fill="currentColor"/>
+                        </svg>
+                    </div>
+                    <div class="tg-text">
+                        <span class="tg-title">Finalize Shift</span>
+                        <span class="tg-subtitle">Generate Telegram Handover</span>
+                    </div>
+                </button>
+            </aside>
             </div>
 
             <div class="tab-content" id="ticketing-view">
@@ -428,43 +466,6 @@
                 </div>
             </div>
 
-            <!-- Ops Panel -->
-            <aside class="ops-panel">
-                <h2 class="section-title">Ops & Integration</h2>
-                
-                <div class="ops-panel-info glass">
-                    <p class="ops-hint">Monitoring is now available in the dedicated tab above for an expanded view.</p>
-                </div>
-
-                <!-- Incident Timeline (NEW) -->
-                <div class="incident-timeline-container glass">
-                    <h3 class="brief-title">Live Incident Timeline</h3>
-                    <div class="timeline-feed" id="timeline-feed">
-                        <!-- Populated by script.js -->
-                        <div class="timeline-empty">Monitoring for incidents...</div>
-                    </div>
-                </div>
-
-                <!-- Recent Handover Brief -->
-                <div class="handover-brief glass" id="latest-handover-card">
-                    <h3 class="brief-title">Latest Handover</h3>
-                    <div class="brief-content">
-                        <p class="brief-text" style="opacity: 0.6;">System ready for next shift finalize...</p>
-                    </div>
-                </div>
-                
-                <button class="telegram-button glass" onclick="generateHandover()">
-                    <div class="tg-icon">
-                        <svg viewBox="0 0 24 24" fill="none" class="tg-svg">
-                            <path d="M21.5 2L2 10.5L8.5 13L11.5 21.5L14 15.5L21.5 2Z" fill="currentColor"/>
-                        </svg>
-                    </div>
-                    <div class="tg-text">
-                        <span class="tg-title">Finalize Shift</span>
-                        <span class="tg-subtitle">Generate Telegram Handover</span>
-                    </div>
-                </button>
-            </aside>
         </main>
     </div>
     <!-- Handover Modal (NEW) -->
