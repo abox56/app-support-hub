@@ -409,9 +409,9 @@ async function initTimeline() {
         const incidents = await response.json();
 
         const feed = document.getElementById('incident-feed');
-        const timelineFeed = document.getElementById('timeline-feed');
+        const timelineFeeds = document.querySelectorAll('.timeline-feed');
         if (feed) feed.innerHTML = ''; 
-        if (timelineFeed) timelineFeed.innerHTML = '';
+        timelineFeeds.forEach(tf => tf.innerHTML = '');
 
         incidents.forEach(inc => {
             renderIncidentCard(inc);
@@ -502,11 +502,9 @@ function renderIncidentCard(inc) {
         feed.appendChild(card.cloneNode(true));
     }
     
-    // Add to ops panel timeline feed
-    const timelineFeed = document.getElementById('timeline-feed');
-    if (timelineFeed) {
-        timelineFeed.appendChild(card);
-    }
+    // Add to ops panel timeline feed(s)
+    const timelineFeeds = document.querySelectorAll('.timeline-feed');
+    timelineFeeds.forEach(tf => tf.appendChild(card.cloneNode(true)));
 }
 
 function isPIC() {
