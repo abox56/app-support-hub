@@ -282,11 +282,46 @@ async function initRoster() {
 }
 
 function findCurrentWeekIndex(date) {
-    // Simple logic: if title contains today's week range
-    // For now, let's just default to week 7 for March 10 (Mar26 Week2)
-    // In production, we'd parse the dateRange string
-    const march10Index = allWeeks.findIndex(w => w.title.includes('9Mar-15Mar'));
-    return march10Index !== -1 ? march10Index : 0;
+    if (!allWeeks || allWeeks.length === 0) return 0;
+    
+    const targetTime = date.getTime();
+
+    for (let i = 0; i < allWeeks.length; i++) {
+        const week = allWeeks[i];
+        if (!week.dateRange) continue;
+        
+        let startEnd = week.dateRange.split('-');
+        if (startEnd.length !== 2) continue;
+        
+        // Extract year from title like "Jan26 Week1"
+        const yearMatch = week.title.match(/[A-Za-z]+(\d{2})/);
+        const year = yearMatch ? 2000 + parseInt(yearMatch[1]) : date.getFullYear();
+
+        let startStr = startEnd[0].replace(/([a-zA-Z]+)/, ' $1 ') + year;
+        let endStr = startEnd[1].replace(/([a-zA-Z]+)/, ' $1 ') + year;
+        
+        let startDate = new Date(startStr);
+        let endDate = new Date(endStr);
+        
+        // Handle Dec to Jan transition overlap
+        if (startDate.getMonth() === 11 && endDate.getMonth() === 0) {
+            endDate.setFullYear(year + 1);
+        }
+        
+        endDate.setHours(23, 59, 59, 999);
+        
+        if (targetTime >= startDate.getTime() && targetTime <= endDate.getTime()) {
+            return i;
+        }
+    }
+    
+    // Fallback if not found: try matching "Mar26" or similar
+    const monthShort = date.toLocaleString('en-US', { month: 'short' });
+    const yearShort = date.getFullYear().toString().slice(2);
+    const fallbackMonthStr = monthShort + yearShort;
+    
+    const fallbackIndex = allWeeks.findIndex(w => w.title.includes(fallbackMonthStr));
+    return fallbackIndex !== -1 ? fallbackIndex : 0;
 }
 
 function renderWeek(index) {
