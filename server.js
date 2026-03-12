@@ -15,7 +15,9 @@ app.use(express.json());
 
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }); // Fallback / current
+const model2 = genAI.getGenerativeModel({ model: "gemini-2.0-flash" }); // Newest (usually what people want when saying "3.1 high speed")
+
 
 let db;
 (async () => {
@@ -272,37 +274,56 @@ const stringSession = new StringSession(process.env.TG_SESSION || "");
 let tgClient;
 async function analyzeMessageAI(content) {
     if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === "") {
-        return { category: categorizeIncident(content), summary: content, isNoise: false, engine: 'Keywords' };
+        return { category: categorizeIncident(content), summary: content, isNoise: false, engine: 'Keywords (Local)' };
     }
 
     const prompt = `
     Analyze this application support message: "${content}"
     
-    Categorize into one of these:
-    [USER_SUPPORT]: User help requests, balance issues, login problems.
-    [PROVIDER_ALERTS]: Provider maintenance, game lag, odds changes (e.g. Evolution, Pragmatic).
-    [SYSTEM_LOGS]: Server alerts, database lag, network busy.
+    Categorize into exactly one of these:
+    [USER_SUPPORT]: User help requests, balance issues, login problems, password reset.
+    [PROVIDER_ALERTS]: Provider maintenance, game lag, odds changes, wallet transfer issues (e.g. Evolution, Pragmatic).
+    [SYSTEM_LOGS]: Server alerts, database lag, network busy, node instability.
     [NOISE]: Greetings, irrelevant chat, emojis, single words.
 
-    Return JSON format:
+    Return ONLY a raw JSON object:
     {
       "category": "CATEGORY_NAME",
-      "summary": "1-sentence actionable summary",
+      "summary": "1-sentence summary",
       "isNoise": true/false,
       "confidence": 0-100
     }
     `;
 
     try {
-        const result = await model.generateContent(prompt);
+        // We Use the latest requested model first
+        const result = await model2.generateContent(prompt);
         const response = await result.response;
-        const text = response.text().replace(/```json|```/g, "").trim();
+        let text = response.text().trim();
+        
+        // Clean markdown code blocks if AI included them
+        if (text.includes("```")) {
+            text = text.split("```")[1].replace(/^json/, "").trim();
+        }
+        
         const data = JSON.parse(text);
-        data.engine = 'Gemini 1.5';
+        data.engine = 'Gemini 2.0 Flash';
         return data;
     } catch (e) {
-        console.error("AI Analysis Failed:", e);
-        return { category: categorizeIncident(content), summary: content, isNoise: false, engine: 'Keywords (Fallback)' };
+        console.error("AI Analysis (Primary) Failed:", e.message);
+        // Secondary attempt with 1.5-flash as fallback
+        try {
+            const result = await model.generateContent(prompt);
+            const response = await result.response;
+            let text = response.text().trim();
+            if (text.includes("```")) text = text.split("```")[1].replace(/^json/, "").trim();
+            const data = JSON.parse(text);
+            data.engine = 'Gemini 1.5 Flash';
+            return data;
+        } catch (e2) {
+             console.error("AI Analysis (Fallback) Failed:", e2.message);
+             return { category: categorizeIncident(content), summary: content, isNoise: false, engine: 'Keywords (Fallback)' };
+        }
     }
 }
 
