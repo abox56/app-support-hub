@@ -989,6 +989,22 @@ function renderAutoShiftUI() {
     Object.keys(uiCalendarData).forEach(dateStr => {
         const dayInfo = uiCalendarData[dateStr];
         
+        const getSortWeight = (assignments) => {
+            const text = assignments.join(', ');
+            if (text.includes("10AM-7PM")) return 1; // Day shift
+            if (text.includes("4PM-1AM") || text.includes("2PM-4PM (2h)")) return 2; // Night Shift
+            if (text.includes("Standby") || text.includes("10AM-1AM") || text.includes("2PM-4PM")) return 3; // Standby
+            if (text.includes("Leave") || text.includes("Holiday") || text.includes("AL") || text.includes("MC")) return 4; // Leave/AL/MC
+            return 5; // OFF or fallback
+        };
+
+        dayInfo.roster.sort((a, b) => {
+            // Tie-breaker by name if weights are equal
+            const diff = getSortWeight(a.assignments) - getSortWeight(b.assignments);
+            if (diff !== 0) return diff;
+            return a.name.localeCompare(b.name);
+        });
+        
         // Count active availability (not offline)
         let availableCount = 0;
 
