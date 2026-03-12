@@ -461,7 +461,6 @@ async function initTimeline() {
 
 function renderIncidentCard(inc) {
     const feed = document.getElementById('incident-feed');
-    if (!feed) return;
 
     const dateObj = new Date(inc.last_update || inc.first_timestamp);
     const timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
