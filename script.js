@@ -237,9 +237,28 @@ function updateActivePIC() {
 
     if (rowIndex !== -1 && week.days[currentDay]) {
         const shift = week.days[currentDay][rowIndex];
-        const pics = [shift.Ivan, shift.Shawn, shift.DJ].filter(n => n && n !== 'Rest Day' && n !== 'AL' && n !== 'PH');
+        
+        const activePeople = [];
+        const people = ['Ivan', 'Shawn', 'DJ'];
+        
+        people.forEach(person => {
+            const status = shift[person];
+            if (status && status !== 'Rest Day' && status !== 'AL' && status !== 'PH' && !status.includes('office close')) {
+                if (status.trim() === '✓' || status.trim() === ' ' || status.trim() === '') {
+                    // For a normal checkmark or blank (if it means active but no special notes), just show name
+                    // Actually, if it's explicitly '✓', they are active.
+                    if(status.trim() === '✓') activePeople.push(person);
+                } else {
+                    // They have a specific time modifier or note
+                    activePeople.push(`${person} (${status.trim()})`);
+                }
+            }
+        });
+
         const picElement = document.getElementById('current-pic');
-        if (picElement) picElement.textContent = (pics.length > 0 ? pics.join(' / ') + ' (Active)' : 'None');
+        if (picElement) {
+            picElement.textContent = activePeople.length > 0 ? activePeople.join(' / ') + ' (Active)' : 'None';
+        }
     }
 }
 
