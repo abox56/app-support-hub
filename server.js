@@ -110,6 +110,21 @@ let db;
                     engine VARCHAR(50),
                     processed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
+                CREATE TABLE IF NOT EXISTS roster_weeks (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    title VARCHAR(255),
+                    date_range VARCHAR(255)
+                );
+                CREATE TABLE IF NOT EXISTS roster_shifts (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    week_id INT,
+                    day_name VARCHAR(50),
+                    time_slot VARCHAR(100),
+                    person_name VARCHAR(100),
+                    shift_status VARCHAR(255),
+                    INDEX(week_id),
+                    INDEX(day_name)
+                );
             `);
             console.log("✅ MySQL Database schema fully initialized.");
         } catch (e) {
@@ -165,6 +180,20 @@ let db;
                 confidence INTEGER,
                 engine TEXT,
                 processed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE TABLE IF NOT EXISTS roster_weeks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT,
+                date_range TEXT
+            );
+            CREATE TABLE IF NOT EXISTS roster_shifts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                week_id INTEGER,
+                day_name TEXT,
+                time_slot TEXT,
+                person_name TEXT,
+                shift_status TEXT,
+                FOREIGN KEY(week_id) REFERENCES roster_weeks(id)
             );
         `);
         console.log(`✅ SQLite Database initialized at: ${dbPath}`);
