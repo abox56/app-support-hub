@@ -759,6 +759,7 @@ function switchTab(tabId, buttonElement) {
     }
 
     if (tabId === 'database') loadRawLogs();
+    if (tabId === 'autoshift') renderAutoShiftUI();
 }
 
 let currentLogPage = 0;
@@ -824,7 +825,11 @@ function generateAutoShift(teamList, holidayList, leaveData, year, month) {
 
   for (let day = 1; day <= daysInMonth; day++) {
     const currentDate = new Date(year, month - 1, day);
-    const dateString = currentDate.toISOString().split('T')[0];
+    const y = currentDate.getFullYear();
+    const mStr = String(currentDate.getMonth() + 1).padStart(2, '0');
+    const dStr = String(currentDate.getDate()).padStart(2, '0');
+    const dateString = `${y}-${mStr}-${dStr}`;
+    
     const dayOfWeek = currentDate.getDay();
     
     if (dayOfWeek === 3 && !firstWednesdayFound) {
