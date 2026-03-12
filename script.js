@@ -876,16 +876,57 @@ function generateAutoShift(teamList, holidayList, leaveData, year, month) {
   return calendar;
 }
 
+let interactiveLeaveData = {
+    'Ivan': {},
+    'Shawn': {},
+    'DJ': {}
+};
+
+function addLeaveAndRegenerate() {
+    const person = document.getElementById('leave-person').value;
+    const dateStr = document.getElementById('leave-date').value;
+    const type = document.getElementById('leave-type').value;
+
+    if (!dateStr.startsWith('2026-04')) {
+        alert("For this simulator, please select a date in April 2026.");
+        return;
+    }
+
+    interactiveLeaveData[person][dateStr] = type;
+    renderAutoShiftUI();
+    renderLeavePills();
+}
+
+function removeLeave(person, dateStr) {
+    if (interactiveLeaveData[person] && interactiveLeaveData[person][dateStr]) {
+        delete interactiveLeaveData[person][dateStr];
+        renderAutoShiftUI();
+        renderLeavePills();
+    }
+}
+
+function renderLeavePills() {
+    const panel = document.getElementById('active-leaves-panel');
+    if (!panel) return;
+
+    panel.innerHTML = '';
+    Object.keys(interactiveLeaveData).forEach(person => {
+        Object.keys(interactiveLeaveData[person]).forEach(dateStr => {
+            const type = interactiveLeaveData[person][dateStr];
+            panel.innerHTML += `
+                <div class="stat-pill" style="cursor: pointer; border-color: var(--red);" onclick="removeLeave('${person}', '${dateStr}')">
+                    ${person} - ${dateStr} (${type}) <span style="margin-left:5px;">&times;</span>
+                </div>
+            `;
+        });
+    });
+}
+
 function renderAutoShiftUI() {
     const teamList = ['Ivan', 'Shawn', 'DJ'];
-    // For demonstration: Let's use April 2026, where Apr 1 is a Wednesday!
     const holidayList = ['2026-04-04']; 
-    const leaveData = {
-        'Ivan': { '2026-04-01': 'AL' }, // The conflict!
-        'DJ': { '2026-04-03': 'MC' }
-    };
 
-    const uiCalendarData = generateAutoShift(teamList, holidayList, leaveData, 2026, 4);
+    const uiCalendarData = generateAutoShift(teamList, holidayList, interactiveLeaveData, 2026, 4);
     const grid = document.getElementById('autoshift-grid');
     if (!grid) return;
     
@@ -895,15 +936,21 @@ function renderAutoShiftUI() {
     Object.keys(uiCalendarData).forEach(dateStr => {
         const dayInfo = uiCalendarData[dateStr];
         
+        // Count active availability (not offline)
+        let availableCount = 0;
+
         let rosterHtml = '';
         dayInfo.roster.forEach(r => {
+            const isOffline = r.assignments.some(a => ['Annual Leave', 'Medical Leave', 'Public Holiday'].includes(a));
+            if (!isOffline) availableCount++;
+
             let tagsHtml = r.tags.map(t => {
                 let cssClass = t.includes('Policy Conflict') ? 'tag-policy-conflict' : 'tag-weight-rule';
                 return `<span class="autoshift-tag ${cssClass}">${t}</span>`;
             }).join('');
             
             rosterHtml += `
-                <div class="autoshift-person-row">
+                <div class="autoshift-person-row" style="${isOffline ? 'opacity: 0.5;' : ''}">
                     <div class="autoshift-person-name">${r.name}</div>
                     <div class="autoshift-assignment">${r.assignments.join(', ')}</div>
                     ${tagsHtml}
@@ -911,17 +958,36 @@ function renderAutoShiftUI() {
             `;
         });
 
+        const isShortStaffed = availableCount < 2;
+
         const card = document.createElement('div');
         card.className = 'autoshift-day-card glass';
-        card.innerHTML = `
-            <div class="autoshift-date-header">
-                <span class="autoshift-date">${dateStr.split('-')[2]}</span>
-                <span class="autoshift-day-name">${dayInfo.day}</span>
-            </div>
-            <div style="margin-top: 1rem; display: flex; flex-direction: column; gap: 0.5rem;">
-                ${rosterHtml}
-            </div>
-        `;
+        if (isShortStaffed) {
+             card.style.borderTopColor = 'var(--red)';
+             card.innerHTML = `
+                <div class="autoshift-date-header">
+                    <div>
+                        <span class="autoshift-date">${dateStr.split('-')[2]}</span>
+                        <span class="autoshift-day-name">${dayInfo.day}</span>
+                    </div>
+                    <span class="autoshift-tag tag-policy-conflict">CRITICAL: SHORT STAFFED</span>
+                </div>
+                <div style="margin-top: 1rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                    ${rosterHtml}
+                </div>
+             `;
+        } else {
+             card.innerHTML = `
+                <div class="autoshift-date-header">
+                    <span class="autoshift-date">${dateStr.split('-')[2]}</span>
+                    <span class="autoshift-day-name">${dayInfo.day}</span>
+                </div>
+                <div style="margin-top: 1rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                    ${rosterHtml}
+                </div>
+            `;
+        }
+
         grid.appendChild(card);
     });
 }

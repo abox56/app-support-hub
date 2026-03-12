@@ -400,6 +400,26 @@
                         </div>
                     </div>
                     
+                    <div class="supervision-controls glass">
+                        <h3 style="font-size: 0.9rem; margin-bottom: 0.8rem;">Leave Planner (Target Month: April 2026)</h3>
+                        <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                            <select id="leave-person" class="glass-input">
+                                <option value="Ivan">Ivan</option>
+                                <option value="Shawn">Shawn</option>
+                                <option value="DJ">DJ</option>
+                            </select>
+                            <input type="date" id="leave-date" class="glass-input" value="2026-04-01" min="2026-04-01" max="2026-04-30">
+                            <select id="leave-type" class="glass-input">
+                                <option value="AL">Annual Leave (AL)</option>
+                                <option value="MC">Medical Leave (MC)</option>
+                            </select>
+                            <button onclick="addLeaveAndRegenerate()" class="action-btn">Block Leave & Generate</button>
+                        </div>
+                        <div id="active-leaves-panel" style="margin-top: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                            <!-- Dynamic active leave pills -->
+                        </div>
+                    </div>
+                    
                     <div id="autoshift-grid" class="autoshift-calendar-grid disabled">
                         <p style="text-align:center; padding: 4rem; opacity: 0.5;">Awaiting execution logic trigger...</p>
                     </div>
