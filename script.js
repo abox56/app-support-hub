@@ -533,16 +533,26 @@ function renderIncidentCard(inc) {
     `;
 
     card.innerHTML = header + body + footer;
-    card.onclick = () => openIncidentDetails(inc.id);
     
+    // Helper to add click for both feeds
+    function applyClick(element) {
+        element.onclick = () => openIncidentDetails(inc.id);
+    }
+
     // Add to main dashboard feed
     if (feed) {
-        feed.appendChild(card.cloneNode(true));
+        const clone = card.cloneNode(true);
+        applyClick(clone);
+        feed.appendChild(clone);
     }
     
     // Add to ops panel timeline feed(s)
     const timelineFeeds = document.querySelectorAll('.timeline-feed');
-    timelineFeeds.forEach(tf => tf.appendChild(card.cloneNode(true)));
+    timelineFeeds.forEach(tf => {
+        const clone = card.cloneNode(true);
+        applyClick(clone);
+        tf.appendChild(clone);
+    });
 }
 
 function isPIC() {
