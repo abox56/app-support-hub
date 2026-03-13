@@ -15,9 +15,9 @@ app.use(express.json());
 
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
-const primaryModel = genAI.getGenerativeModel({ model: "gemini-3-flash" }); 
-const secondaryModel = genAI.getGenerativeModel({ model: "gemini-2.0-flash" }); 
-const fallbackModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }); 
+const primaryModel = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" }); 
+const secondaryModel = genAI.getGenerativeModel({ model: "gemini-2.5-flash" }); 
+const fallbackModel = genAI.getGenerativeModel({ model: "gemini-flash-latest" }); 
 
 
 let db;
@@ -308,24 +308,24 @@ async function analyzeMessageAI(content) {
     } catch (e) {
         console.error("AI Analysis (Gemini 3) Failed:", e.message);
         try {
-            // 2. SECONDARY: Gemini 2.0 Flash
+            // 2. SECONDARY: Gemini 2.5 Flash
             const result = await secondaryModel.generateContent(prompt);
             const response = await result.response;
             let text = response.text().trim();
             if (text.includes("```")) text = text.split("```")[1].replace(/^json/, "").trim();
             const data = JSON.parse(text);
-            data.engine = 'Gemini 2.0 Flash';
+            data.engine = 'Gemini 2.5 Flash';
             return data;
         } catch (e2) {
-            console.error("AI Analysis (Gemini 2.0) Failed:", e2.message);
+            console.error("AI Analysis (Gemini 2.5) Failed:", e2.message);
             try {
-                // 3. TERTIARY: Gemini 1.5 Flash
+                // 3. TERTIARY: Gemini Flash Latest
                 const result = await fallbackModel.generateContent(prompt);
                 const response = await result.response;
                 let text = response.text().trim();
                 if (text.includes("```")) text = text.split("```")[1].replace(/^json/, "").trim();
                 const data = JSON.parse(text);
-                data.engine = 'Gemini 1.5 Flash';
+                data.engine = 'Gemini Flash Stable';
                 return data;
             } catch (e3) {
                  console.error("AI Analysis (Fallbacks) Failed:", e3.message);
