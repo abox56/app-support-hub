@@ -1352,6 +1352,116 @@ body {
     display: flex;
 }
 
+/* Incident Details Modal Specifics */
+.details-modal {
+    max-width: 800px;
+    width: 100%;
+}
+
+.details-header-main {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.details-meta {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.engine-tag {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    opacity: 0.8;
+}
+
+.details-body {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    max-height: 70vh;
+    overflow-y: auto;
+    padding-right: 0.5rem;
+}
+
+.details-body::-webkit-scrollbar {
+    width: 4px;
+}
+
+.details-body::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 4px;
+}
+
+.details-label {
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    letter-spacing: 1.5px;
+    margin-bottom: 0.8rem;
+    display: block;
+    text-transform: uppercase;
+}
+
+.details-summary-section {
+    padding: 1.5rem;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+}
+
+.details-summary-text {
+    font-size: 1.1rem;
+    line-height: 1.6;
+    color: var(--text-primary);
+    font-weight: 300;
+}
+
+.details-messages-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.detail-msg-item {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1.2rem;
+    transition: background 0.2s ease;
+}
+
+.detail-msg-item:hover {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.msg-item-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.6rem;
+    align-items: center;
+}
+
+.msg-sender {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--cyan);
+}
+
+.msg-time {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    font-family: monospace;
+}
+
+.msg-content {
+    font-size: 0.95rem;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    color: rgba(255, 255, 255, 0.9);
+}
+
 .modal-content {
     width: 90%;
     max-width: 550px;
@@ -1901,6 +2011,7 @@ body {
     position: relative;
     transition: all 0.3s ease;
     overflow: hidden;
+    cursor: pointer;
 }
 
 .incident-card::before {

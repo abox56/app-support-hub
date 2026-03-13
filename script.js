@@ -1,4 +1,5 @@
 let HUB_PASSWORD = localStorage.getItem('hub_access_token') || '';
+let ALL_INCIDENTS = []; // Global cache for detailed view
 
 async function apiFetch(url, options = {}) {
     if (!options.headers) options.headers = {};
@@ -442,6 +443,7 @@ async function initTimeline() {
     try {
         const response = await apiFetch('/api/incidents');
         const incidents = await response.json();
+        ALL_INCIDENTS = incidents; // Store for detals view
 
         const feed = document.getElementById('incident-feed');
         const timelineFeeds = document.querySelectorAll('.timeline-feed');
@@ -526,11 +528,12 @@ function renderIncidentCard(inc) {
                 <span class="time-ago">Last update at ${timeStr} • Engine: ${inc.engine || 'Unknown'}</span>
                 <span class="source-group">${inc.source || 'Direct Hub'}</span>
             </div>
-            ${isPIC() ? `<button class="notify-btn" onclick="resolveIncident('${inc.id}')">Resolve</button>` : ''}
+            ${isPIC() ? `<button class="notify-btn" onclick="event.stopPropagation(); resolveIncident('${inc.id}')">Resolve</button>` : ''}
         </div>
     `;
 
     card.innerHTML = header + body + footer;
+    card.onclick = () => openIncidentDetails(inc.id);
     
     // Add to main dashboard feed
     if (feed) {
@@ -596,6 +599,74 @@ async function logManualIncident() {
     } catch (err) {
         console.error('Failed to log manual incident:', err);
     }
+}
+
+function openIncidentDetails(id) {
+    const inc = ALL_INCIDENTS.find(i => i.id === id);
+    if (!inc) return;
+
+    document.getElementById('detail-title').textContent = `Incident Thread #${inc.id}`;
+    document.getElementById('detail-category').textContent = inc.category || 'General';
+    document.getElementById('detail-engine').textContent = `Engine: ${inc.engine || 'Local Keywords'}`;
+    document.getElementById('detail-summary').textContent = inc.ai_summary || inc.main_content;
+    document.getElementById('detail-msg-count').textContent = inc.updates ? inc.updates.length : 1;
+
+    const list = document.getElementById('detail-messages-list');
+    list.innerHTML = '';
+
+    if (inc.updates && inc.updates.length > 0) {
+        inc.updates.forEach(msg => {
+            const date = new Date(msg.timestamp);
+            const timeStr = date.toLocaleString('en-SG', { 
+                day: '2-digit', 
+                month: 'short', 
+                hour: '2-digit', 
+                minute: '2-digit',
+                second: '2-digit'
+            });
+            
+            const item = document.createElement('div');
+            item.className = 'detail-msg-item';
+            item.innerHTML = `
+                <div class="msg-item-header">
+                    <span class="msg-sender">${msg.sender}</span>
+                    <span class="msg-time">${timeStr}</span>
+                </div>
+                <div class="msg-content">${msg.content}</div>
+            `;
+            list.appendChild(item);
+        });
+    } else {
+        // Fallback for single manual log
+        const item = document.createElement('div');
+        item.className = 'detail-msg-item';
+        item.innerHTML = `
+            <div class="msg-item-header">
+                <span class="msg-sender">${inc.assigned_to || 'System'}</span>
+                <span class="msg-time">${new Date(inc.first_timestamp).toLocaleString('en-SG')}</span>
+            </div>
+            <div class="msg-content">${inc.main_content}</div>
+        `;
+        list.appendChild(item);
+    }
+
+    // Resolve Button in footer
+    const resolveContainer = document.getElementById('detail-resolve-container');
+    resolveContainer.innerHTML = '';
+    if (isPIC() && inc.status !== 'Resolved') {
+        const btn = document.createElement('button');
+        btn.className = 'modal-btn primary';
+        btn.style.background = 'var(--cyan)';
+        btn.style.color = '#000';
+        btn.textContent = 'Resolve & Close';
+        btn.onclick = () => {
+            closeModal('incident-detail-modal');
+            resolveIncident(id);
+        };
+        resolveContainer.appendChild(btn);
+    }
+
+    openModal('incident-detail-modal');
 }
 
 // Timeline events are now handled by renderIncidentCard

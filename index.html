@@ -476,6 +476,41 @@
 
         </main>
     </div>
+
+    <!-- Incident Detail Modal (NEW) -->
+    <div id="incident-detail-modal" class="modal-overlay">
+        <div class="modal-content glass details-modal">
+            <div class="modal-header">
+                <div class="details-header-main">
+                    <h3 class="modal-title" id="detail-title">Incident Details</h3>
+                    <div class="details-meta">
+                        <span id="detail-category" class="incident-category">--</span>
+                        <span id="detail-engine" class="engine-tag">Engine: --</span>
+                    </div>
+                </div>
+                <button class="modal-close" onclick="closeModal('incident-detail-modal')">&times;</button>
+            </div>
+            <div class="modal-body details-body">
+                <div class="details-summary-section glass">
+                    <label class="details-label">AI SUMMARY</label>
+                    <p id="detail-summary" class="details-summary-text">--</p>
+                </div>
+                
+                <div class="details-messages-section">
+                    <label class="details-label">MESSAGE THREAD (<span id="detail-msg-count">0</span>)</label>
+                    <div id="detail-messages-list" class="details-messages-list">
+                        <!-- Messages go here -->
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="modal-btn secondary" onclick="closeModal('incident-detail-modal')">Close</button>
+                <div id="detail-resolve-container">
+                    <!-- Resolve button injected here -->
+                </div>
+            </div>
+        </div>
+    </div>
     <!-- Handover Modal (NEW) -->
     <div id="handover-modal" class="modal-overlay">
         <div class="modal-content glass">
