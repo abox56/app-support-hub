@@ -748,46 +748,37 @@ function filterDocs() {
     });
 }
 
-function generateHandover() {
-    const picName = document.getElementById('current-pic')?.textContent || 'PIC';
-    const now = new Date();
-    const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    const dateStr = now.toLocaleDateString([], { day: '2-digit', month: 'short', year: 'numeric' });
-
-    // Gather Active Incidents from the Engine
-    const incidentCards = Array.from(document.querySelectorAll('.incident-card')).slice(0, 10);
-    const summaryLines = incidentCards.map(card => {
-        const category = card.querySelector('.incident-category')?.textContent || 'LOG';
-        const summary = card.querySelector('.incident-summary')?.textContent.trim();
-        const counter = card.querySelector('.aggregation-counter')?.textContent || '';
-        let icon = '🔹';
-        if (card.classList.contains('critical')) icon = '🔴';
-        return `${icon} [${category}] ${summary} ${counter}`;
-    }).slice(0, 5).join('\n');
-
-    const summary = `🚀 *HUB COMMAND CENTER HANDOVER* 🚀
-📅 Date: ${dateStr} | 🕒 Time: ${timeStr}
-👤 Outgoing PIC: ${picName}
-
----
-🔥 *ACTIVE INCIDENT ENGINE SUMMARY*
-${summaryLines || '✅ No active incidents reported.'}
-
----
-📊 *SYSTEM STATUS*
-✅ SLA: STABLE
-✅ AI Engine: ONLINE
-✅ SMI Monitoring: PERSISTENT
-
----
-cc: @App_Sup_Team`;
-
+async function generateHandover() {
+    const picName = document.getElementById('current-pic')?.textContent.replace('(Active)', '').trim() || 'PIC';
+    
+    // Show modal with loading state first
     const handoverText = document.getElementById('handover-text');
     if (handoverText) {
-        handoverText.value = summary.trim();
+        handoverText.value = "🔄 Gemini is analyzing shift incidents and generating your report...";
     }
-
     openModal('handover-modal');
+
+    try {
+        const response = await apiFetch('/api/generate-handover', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ picName })
+        });
+        const data = await response.json();
+
+        if (data.success && handoverText) {
+            handoverText.value = data.content.trim();
+        } else {
+            throw new Error(data.error || "Failed to generate AI handover");
+        }
+    } catch (e) {
+        console.error("Handover AI Generic Error:", e);
+        if (handoverText) {
+            handoverText.value = "⚠️ AI Generation Failed. Please manually summarize the shift.\n\n" + 
+                               "Outgoing PIC: " + picName + "\n" +
+                               "Date: " + new Date().toLocaleDateString();
+        }
+    }
 }
 
 function openSettings() {

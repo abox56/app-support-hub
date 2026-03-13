@@ -335,6 +335,55 @@ async function analyzeMessageAI(content) {
     }
 }
 
+async function generateHandoverAI(incidents, picName) {
+    if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === "") {
+        return null;
+    }
+
+    const dateStr = new Date().toLocaleDateString('en-SG', { day: '2-digit', month: 'short', year: 'numeric' });
+    const timeStr = new Date().toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit' });
+
+    const incidentList = incidents.map(inc => {
+        const count = inc.updates ? inc.updates.length : 1;
+        return `- [${inc.category}] ${inc.ai_summary || inc.main_content} (Group: ${inc.source}) ${count > 1 ? `[x${count} messages]` : ''}`;
+    }).join('\n');
+
+    const prompt = `
+    You are a professional Application Support Lead at Cloudway. Generate a concise, structured Shift Handover report in Markdown for the Telegram group.
+    
+    Current Date: ${dateStr}
+    Current Time: ${timeStr}
+    Outgoing PIC: ${picName}
+    
+    Here are the incidents that occurred during the shift:
+    ${incidentList || 'No major incidents reported.'}
+    
+    Requirements:
+    1. Start with a professional header: 🚀 *HUB COMMAND CENTER HANDOVER* 🚀
+    2. Include Date, Time, and Outgoing PIC.
+    3. Group incidents by their category.
+    4. MUST highlight which Telegram group each incident originated from (e.g., [CW App Int Group], [UFABET - Operation]).
+    5. Be concise but ensure critical provider alerts or system logs stand out.
+    6. Summarize the overall "Shift Vibe" (e.g., Busy, Stable, Noisy).
+    7. Use standard Telegram Markdown (*bold*, _italic_).
+    8. End with a list of active tasks for the incoming PIC if any incidents are still "Captured" or "Manual Input" and not Resolved.
+    `;
+
+    try {
+        const result = await primaryModel.generateContent(prompt);
+        return (await result.response).text();
+    } catch (e) {
+        console.error("AI Handover (G3) Failed:", e.message);
+        try {
+            const result = await secondaryModel.generateContent(prompt);
+            return (await result.response).text();
+        } catch (e2) {
+            console.error("AI Handover (G2.5) Failed:", e2.message);
+            return null;
+        }
+    }
+}
+
 async function addTelegramIncident(groupTitle, senderName, content, msgId, chatId) {
     const analysis = await analyzeMessageAI(content);
     const now = new Date();
@@ -633,6 +682,35 @@ app.post('/api/admin/bulk-recategorize', async (req, res) => {
         });
     } catch (e) {
         console.error("Bulk Redux Error:", e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// API: Generate AI Handover
+app.post('/api/generate-handover', async (req, res) => {
+    try {
+        const { picName } = req.body;
+        const now = new Date();
+        const shiftStart = new Date(now.getTime() - (8 * 60 * 60 * 1000)).toISOString(); // Last 8 hours
+
+        const incidents = await db.all(
+            `SELECT * FROM incidents WHERE last_update > ? ORDER BY last_update DESC`,
+            [shiftStart]
+        );
+
+        for (let inc of incidents) {
+            inc.updates = await db.all(`SELECT id FROM incident_updates WHERE incident_id = ?`, [inc.id]);
+        }
+
+        const aiHandover = await generateHandoverAI(incidents, picName || 'Outgoing PIC');
+        
+        if (aiHandover) {
+            res.json({ success: true, content: aiHandover });
+        } else {
+            res.status(500).json({ error: "AI failed to generate handover" });
+        }
+    } catch (e) {
+        console.error("Handover Gen Error:", e);
         res.status(500).json({ error: e.message });
     }
 });
