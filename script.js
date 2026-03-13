@@ -837,6 +837,41 @@ function changeLogPage(dir) {
     loadRawLogs();
 }
 
+async function bulkRecategorize() {
+    if (!confirm("This will re-analyze all historical messages using Gemini 3 Flash. This may take a moment. Continue?")) return;
+
+    const btn = document.getElementById('bulk-recat-btn');
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="pulse-dot online"></span> Re-Processing Archive...';
+
+    try {
+        const response = await fetch('/api/admin/bulk-recategorize', {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': HUB_PASSWORD 
+            }
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+            alert(`🎉 Success!\n${data.message}`);
+            // Refresh views
+            initTimeline();
+            loadRawLogs();
+        } else {
+            alert("Failed: " + data.error);
+        }
+    } catch (e) {
+        console.error(e);
+        alert("Request Failed: " + e.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    }
+}
+
 async function downloadDatabase() {
     try {
         const response = await fetch('/api/download-db', {

@@ -354,7 +354,13 @@
                             <h2 class="section-title">Database Explorer (Raw Logs)</h2>
                             <p class="section-subtitle">Viewing ALL captured messages from Telegram groups.</p>
                         </div>
-                        <div class="header-actions">
+                        <div class="header-actions" style="display: flex; gap: 1rem;">
+                            <button id="bulk-recat-btn" onclick="bulkRecategorize()" class="download-link glass" style="border-color: var(--primary);">
+                                <svg viewBox="0 0 24 24" fill="none" width="16" height="16" stroke="currentColor" stroke-width="2">
+                                    <path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16"/>
+                                </svg>
+                                AI Recategorize Archive
+                            </button>
                             <button onclick="downloadDatabase()" class="download-link glass">
                                 <svg viewBox="0 0 24 24" fill="none" width="16" height="16" stroke="currentColor" stroke-width="2">
                                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>

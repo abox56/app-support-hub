@@ -578,6 +578,65 @@ app.get('/api/download-db', (req, res) => {
     }
 });
 
+// API: Bulk Recategorize with Gemini 3
+app.post('/api/admin/bulk-recategorize', async (req, res) => {
+    try {
+        console.log("🚀 Starting Bulk Recategorization with Gemini 3 Flash...");
+        
+        // 1. Get incidents that aren't Gemini 3
+        const incidents = await db.all(`SELECT id, main_content FROM incidents WHERE engine NOT LIKE '%Gemini 3%' OR engine IS NULL`);
+        let incCount = 0;
+
+        for (const inc of incidents) {
+            try {
+                const analysis = await analyzeMessageAI(inc.main_content);
+                if (analysis && analysis.engine.includes('Gemini 3')) {
+                    await db.run(
+                        `UPDATE incidents SET category = ?, ai_summary = ?, engine = ? WHERE id = ?`,
+                        [analysis.category, analysis.summary, analysis.engine, inc.id]
+                    );
+                    incCount++;
+                }
+                // Small sleep to avoid throttling
+                await new Promise(r => setTimeout(r, 200));
+            } catch (err) {
+                console.error(`Failed to recat incident ${inc.id}:`, err.message);
+            }
+        }
+
+        // 2. Get raw logs (message_analysis_logs)
+        // Note: We limit this to last 100 to prevent infinite loop / timeout
+        const logs = await db.all(`SELECT id, content FROM message_analysis_logs WHERE engine NOT LIKE '%Gemini 3%' OR engine IS NULL LIMIT 100`);
+        let logCount = 0;
+
+        for (const log of logs) {
+            try {
+                const analysis = await analyzeMessageAI(log.content);
+                if (analysis && analysis.engine.includes('Gemini 3')) {
+                    await db.run(
+                        `UPDATE message_analysis_logs SET ai_category = ?, ai_summary = ?, engine = ?, is_noise = ?, confidence = ? WHERE id = ?`,
+                        [analysis.category, analysis.summary, analysis.engine, analysis.isNoise ? 1 : 0, analysis.confidence, log.id]
+                    );
+                    logCount++;
+                }
+                await new Promise(r => setTimeout(r, 200));
+            } catch (err) {
+                console.error(`Failed to recat log ${log.id}:`, err.message);
+            }
+        }
+
+        res.json({ 
+            success: true, 
+            incidents_updated: incCount, 
+            logs_updated: logCount,
+            message: `Successfully re-processed ${incCount} incidents and ${logCount} raw logs using Gemini 3 Flash core.`
+        });
+    } catch (e) {
+        console.error("Bulk Redux Error:", e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
 // API: Log a new incident (Manual)
 app.post('/api/incidents', async (req, res) => {
     const { content, assigned_to } = req.body;
