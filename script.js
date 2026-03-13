@@ -534,24 +534,18 @@ function renderIncidentCard(inc) {
 
     card.innerHTML = header + body + footer;
     
-    // Helper to add click for both feeds
-    function applyClick(element) {
-        element.onclick = () => openIncidentDetails(inc.id);
-    }
+    // Use an attribute for onclick so it survives cloning
+    card.setAttribute('onclick', `openIncidentDetails('${inc.id}')`);
 
     // Add to main dashboard feed
     if (feed) {
-        const clone = card.cloneNode(true);
-        applyClick(clone);
-        feed.appendChild(clone);
+        feed.appendChild(card.cloneNode(true));
     }
     
     // Add to ops panel timeline feed(s)
     const timelineFeeds = document.querySelectorAll('.timeline-feed');
     timelineFeeds.forEach(tf => {
-        const clone = card.cloneNode(true);
-        applyClick(clone);
-        tf.appendChild(clone);
+        tf.appendChild(card.cloneNode(true));
     });
 }
 
@@ -612,8 +606,12 @@ async function logManualIncident() {
 }
 
 function openIncidentDetails(id) {
-    const inc = ALL_INCIDENTS.find(i => i.id === id);
-    if (!inc) return;
+    console.log("Opening details for:", id);
+    const inc = ALL_INCIDENTS.find(i => String(i.id) === String(id));
+    if (!inc) {
+        console.error("Incident not found in local cache:", id);
+        return;
+    }
 
     document.getElementById('detail-title').textContent = `Incident Thread #${inc.id}`;
     document.getElementById('detail-category').textContent = inc.category || 'General';
