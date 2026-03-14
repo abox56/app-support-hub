@@ -2526,3 +2526,101 @@ body {
     border-radius: 4px;
     background: linear-gradient(to right, #00f2fe, #4facfe, #96e6a1, #f093fb, #f5576c);
 }
+
+/* Radar & Flow Chart Styles */
+.radar-container {
+    height: 250px;
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 1rem;
+}
+
+.radar-center {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: rgba(0, 242, 254, 0.1);
+    border: 1px solid rgba(0, 242, 254, 0.3);
+    position: absolute;
+    z-index: 5;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 0.7rem;
+    font-weight: 700;
+}
+
+.radar-spike {
+    position: absolute;
+    bottom: 50%;
+    left: 50%;
+    width: 2px;
+    background: linear-gradient(to top, var(--cyan), transparent);
+    transform-origin: bottom center;
+    transition: height 0.3s ease;
+    border-radius: 2px;
+}
+
+.radar-label {
+    position: absolute;
+    font-size: 0.6rem;
+    color: var(--text-secondary);
+    pointer-events: none;
+}
+
+.flow-container {
+    height: 250px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    padding: 0.5rem;
+}
+
+.flow-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    height: 24px;
+}
+
+.flow-source {
+    width: 80px;
+    font-size: 0.65rem;
+    text-align: right;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--text-secondary);
+}
+
+.flow-ribbon-container {
+    flex: 1;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 12px;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+}
+
+.flow-ribbon {
+    height: 100%;
+    transition: opacity 0.2s;
+    cursor: pointer;
+}
+
+.flow-ribbon:hover {
+    opacity: 0.8 !important;
+}
+
+.flow-target {
+    width: 80px;
+    font-size: 0.65rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}

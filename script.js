@@ -691,45 +691,88 @@ function renderAnalytics(incidents) {
 
     if (!catContainer || !groupContainer) return;
 
-    // 1. Category Chart
-    const cats = {};
-    incidents.forEach(i => cats[i.category] = (cats[i.category] || 0) + 1);
-    
-    catContainer.innerHTML = '';
-    const maxCat = Math.max(...Object.values(cats), 1);
-    Object.entries(cats).forEach(([name, count]) => {
-        const percentage = (count / maxCat) * 100;
-        const row = document.createElement('div');
-        row.className = 'chart-row';
-        row.innerHTML = `
-            <div class="chart-label">${name}</div>
-            <div class="chart-bar-bg"><div class="chart-bar" style="width: ${percentage}%"></div></div>
-            <div class="chart-value">${count}</div>
-        `;
-        catContainer.appendChild(row);
-    });
+    // 1. Shift Radar (Circular 24h Activity)
+    const radarContainer = document.getElementById('shift-radar');
+    if (radarContainer) {
+        const hours = Array(24).fill(0);
+        incidents.forEach(i => {
+            const date = new Date(i.first_timestamp || i.timestamp || new Date());
+            if (!isNaN(date.getTime())) hours[date.getHours()]++;
+        });
 
-    // 2. Group Chart
-    const groups = {};
-    incidents.forEach(i => {
-        if(i.source !== 'Manual Input') groups[i.source] = (groups[i.source] || 0) + 1;
-    });
+        radarContainer.innerHTML = '<div class="radar-center">24h HUB</div>';
+        const maxVal = Math.max(...hours, 1);
 
-    groupContainer.innerHTML = '';
-    const sortedGroups = Object.entries(groups).sort((a,b) => b[1] - a[1]).slice(0, 5);
-    const maxGroup = Math.max(...sortedGroups.map(g => g[1]), 1);
-    
-    sortedGroups.forEach(([name, count]) => {
-        const percentage = (count / maxGroup) * 100;
-        const row = document.createElement('div');
-        row.className = 'chart-row';
-        row.innerHTML = `
-            <div class="chart-label">${name.substring(0, 15)}</div>
-            <div class="chart-bar-bg"><div class="chart-bar primary" style="width: ${percentage}%"></div></div>
-            <div class="chart-value">${count}</div>
-        `;
-        groupContainer.appendChild(row);
-    });
+        hours.forEach((count, h) => {
+            const angle = (h / 24) * 360;
+            const height = (count / maxVal) * 100;
+            
+            // Spike
+            const spike = document.createElement('div');
+            spike.className = 'radar-spike';
+            spike.style.transform = `rotate(${angle}deg)`;
+            spike.style.height = `${height}px`;
+            if (count > 0) spike.style.boxShadow = `0 0 5px var(--cyan)`;
+            radarContainer.appendChild(spike);
+
+            // Labels for major hours
+            if (h % 6 === 0) {
+                const label = document.createElement('div');
+                label.className = 'radar-label';
+                const rad = (angle - 90) * (Math.PI / 180);
+                const x = Math.cos(rad) * 115;
+                const y = Math.sin(rad) * 115;
+                label.style.transform = `translate(${x}px, ${y}px)`;
+                label.textContent = `${h.toString().padStart(2, '0')}:00`;
+                radarContainer.appendChild(label);
+            }
+        });
+    }
+
+    // 2. Category Source Flow (Sankey Concept)
+    const flowContainer = document.getElementById('category-flow');
+    if (flowContainer) {
+        // Aggregate: Source -> Category
+        const sourceCats = {};
+        const allCats = new Set();
+        const topSources = {};
+
+        incidents.forEach(i => {
+            if (i.source === 'Manual Input') return;
+            topSources[i.source] = (topSources[i.source] || 0) + 1;
+            if (!sourceCats[i.source]) sourceCats[i.source] = {};
+            sourceCats[i.source][i.category] = (sourceCats[i.source][i.category] || 0) + 1;
+            allCats.add(i.category);
+        });
+
+        const sortedSources = Object.entries(topSources).sort((a,b) => b[1] - a[1]).slice(0, 5);
+        const catArray = Array.from(allCats);
+        const catColors = ['#00f2fe', '#4facfe', '#96e6a1', '#f093fb', '#f5576c', '#f8bbd0'];
+
+        flowContainer.innerHTML = '';
+        sortedSources.forEach(([source, total]) => {
+            const row = document.createElement('div');
+            row.className = 'flow-row';
+            
+            let ribbonsHtml = '';
+            catArray.forEach((cat, idx) => {
+                const count = sourceCats[source][cat] || 0;
+                const width = (count / total) * 100;
+                if (width > 0) {
+                    ribbonsHtml += `<div class="flow-ribbon" title="${cat}: ${count}" style="width: ${width}%; background: ${catColors[idx % catColors.length]}"></div>`;
+                }
+            });
+
+            row.innerHTML = `
+                <div class="flow-source" title="${source}">${source.substring(0, 10)}</div>
+                <div class="flow-ribbon-container">
+                    ${ribbonsHtml}
+                </div>
+                <div class="flow-target">${total} Total</div>
+            `;
+            flowContainer.appendChild(row);
+        });
+    }
 
     // 3. Day of Week Chart
     const dayContainer = document.getElementById('day-chart');
