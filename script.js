@@ -731,6 +731,67 @@ function renderAnalytics(incidents) {
         groupContainer.appendChild(row);
     });
 
+    // 3. Day of Week Chart
+    const dayContainer = document.getElementById('day-chart');
+    if (dayContainer) {
+        const days = { 'Mon': 0, 'Tue': 0, 'Wed': 0, 'Thu': 0, 'Fri': 0, 'Sat': 0, 'Sun': 0 };
+        const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        
+        incidents.forEach(i => {
+            if (i.source === 'Manual Input') return; // Optionally exclude manual
+            const date = new Date(i.first_timestamp || i.timestamp || new Date());
+            if (!isNaN(date.getTime())) {
+                const dayName = dayNames[date.getDay()];
+                days[dayName]++;
+            }
+        });
+
+        dayContainer.innerHTML = '';
+        const maxDay = Math.max(...Object.values(days), 1);
+        
+        ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].forEach(name => {
+            const count = days[name];
+            const percentage = (count / maxDay) * 100;
+            const row = document.createElement('div');
+            row.className = 'chart-row';
+            row.innerHTML = `
+                <div class="chart-label">${name}</div>
+                <div class="chart-bar-bg"><div class="chart-bar" style="width: ${percentage}%; background: var(--purple);"></div></div>
+                <div class="chart-value">${count}</div>
+            `;
+            dayContainer.appendChild(row);
+        });
+    }
+
+    // 4. Hour of Day Chart
+    const hourContainer = document.getElementById('hour-chart');
+    if (hourContainer) {
+        const hours = Array(24).fill(0);
+        incidents.forEach(i => {
+            if (i.source === 'Manual Input') return; // Optionally exclude manual
+            const date = new Date(i.first_timestamp || i.timestamp || new Date());
+            if (!isNaN(date.getTime())) {
+                hours[date.getHours()]++;
+            }
+        });
+
+        hourContainer.innerHTML = '';
+        const maxHour = Math.max(...hours, 1);
+        
+        hours.forEach((count, h) => {
+            const percentage = (count / maxHour) * 100;
+            const row = document.createElement('div');
+            row.className = 'chart-row';
+            const label = h.toString().padStart(2, '0') + ':00';
+            row.innerHTML = `
+                <div class="chart-label">${label}</div>
+                <div class="chart-bar-bg"><div class="chart-bar" style="width: ${percentage}%; background: var(--pink);"></div></div>
+                <div class="chart-value">${count}</div>
+            `;
+            hourContainer.appendChild(row);
+        });
+    }
+
     // Efficiency
     const avgResponse = document.getElementById('avg-response-time');
     if (avgResponse) avgResponse.textContent = '8.4 mins'; // Calculation placeholder
