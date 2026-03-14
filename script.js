@@ -686,10 +686,7 @@ function openIncidentDetails(id) {
 
 
 function renderAnalytics(incidents) {
-    const catContainer = document.getElementById('category-chart');
-    const groupContainer = document.getElementById('group-chart');
-
-    if (!catContainer || !groupContainer) return;
+    if (!incidents || incidents.length === 0) return;
 
     // 1. Shift Radar (Circular 24h Activity)
     const radarContainer = document.getElementById('shift-radar');
