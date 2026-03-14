@@ -763,32 +763,41 @@ function renderAnalytics(incidents) {
         });
     }
 
-    // 4. Hour of Day Chart
-    const hourContainer = document.getElementById('hour-chart');
-    if (hourContainer) {
+    // 4. Hourly Peak Performance Heatmap (NEW)
+    const heatmapContainer = document.getElementById('hourly-heatmap');
+    if (heatmapContainer) {
         const hours = Array(24).fill(0);
         incidents.forEach(i => {
-            if (i.source === 'Manual Input') return; // Optionally exclude manual
             const date = new Date(i.first_timestamp || i.timestamp || new Date());
             if (!isNaN(date.getTime())) {
                 hours[date.getHours()]++;
             }
         });
 
-        hourContainer.innerHTML = '';
-        const maxHour = Math.max(...hours, 1);
-        
+        heatmapContainer.innerHTML = '';
+        const maxVal = Math.max(...hours, 1);
+
         hours.forEach((count, h) => {
-            const percentage = (count / maxHour) * 100;
-            const row = document.createElement('div');
-            row.className = 'chart-row';
-            const label = h.toString().padStart(2, '0') + ':00';
-            row.innerHTML = `
-                <div class="chart-label">${label}</div>
-                <div class="chart-bar-bg"><div class="chart-bar" style="width: ${percentage}%; background: var(--pink);"></div></div>
-                <div class="chart-value">${count}</div>
-            `;
-            hourContainer.appendChild(row);
+            const cell = document.createElement('div');
+            cell.className = 'heatmap-cell';
+            const ratio = count / maxVal;
+            
+            // Color Logic: From Cool Blue -> Soft Green -> Intense Pink
+            let color = 'rgba(255, 255, 255, 0.05)';
+            if (count > 0) {
+                if (ratio < 0.2) color = '#00f2fe';
+                else if (ratio < 0.4) color = '#4facfe';
+                else if (ratio < 0.6) color = '#96e6a1';
+                else if (ratio < 0.8) color = '#f093fb';
+                else color = '#f5576c';
+            }
+
+            cell.style.backgroundColor = color;
+            if (count > 0) cell.style.boxShadow = `0 0 10px ${color}44`;
+            
+            cell.dataset.time = `${h.toString().padStart(2, '0')}:00`;
+            cell.textContent = count; // Visible on hover
+            heatmapContainer.appendChild(cell);
         });
     }
 

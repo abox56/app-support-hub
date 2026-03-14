@@ -2464,3 +2464,65 @@ body {
     color: var(--green);
     border: 1px solid rgba(0, 255, 136, 0.3);
 }
+
+/* Heatmap Styling */
+.heatmap-container {
+    display: grid;
+    grid-template-columns: repeat(24, 1fr);
+    gap: 4px;
+    margin-bottom: 0.5rem;
+}
+
+.heatmap-cell {
+    aspect-ratio: 1/1;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.05);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    font-size: 0.6rem;
+    font-weight: 700;
+    color: transparent;
+    transition: all 0.2s ease;
+    cursor: default;
+    position: relative;
+}
+
+.heatmap-cell:hover {
+    transform: scale(1.1);
+    z-index: 10;
+    color: #fff;
+    box-shadow: 0 0 10px rgba(0,0,0,0.5);
+}
+
+.heatmap-cell::after {
+    content: attr(data-time);
+    position: absolute;
+    bottom: -18px;
+    font-size: 0.5rem;
+    color: var(--text-secondary);
+    opacity: 0;
+    pointer-events: none;
+}
+
+.heatmap-cell:nth-child(4n)::after {
+    opacity: 1; /* Show every 4th hour label by default */
+}
+
+.heatmap-legend {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    margin-top: 2rem;
+}
+
+.legend-scale {
+    flex: 1;
+    max-width: 200px;
+    height: 8px;
+    border-radius: 4px;
+    background: linear-gradient(to right, #00f2fe, #4facfe, #96e6a1, #f093fb, #f5576c);
+}

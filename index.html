@@ -340,14 +340,20 @@
                             </div>
                         </div>
                         <div class="analytics-card glass" style="grid-column: 1 / -1;">
-                            <h3>Volume by Day (Mon-Sun)</h3>
-                            <div class="chart-container" id="day-chart">
-                                <!-- Styled CSS Bars -->
+                            <h3>Daily Shift Activity Heatmap</h3>
+                            <p class="admin-card-desc" style="margin-bottom: 1rem;">Heatmap representing peak incident hours across a 24-hour cycle. Darker colors indicate high-pressure periods.</p>
+                            <div class="heatmap-container" id="hourly-heatmap">
+                                <!-- Dynamic Heatmap Cells -->
+                            </div>
+                            <div class="heatmap-legend">
+                                <span>Quiet</span>
+                                <div class="legend-scale"></div>
+                                <span>Busy</span>
                             </div>
                         </div>
-                        <div class="analytics-card glass" style="grid-column: 1 / -1; max-height: 400px; overflow-y: auto;">
-                            <h3>Volume by Hour (Daily)</h3>
-                            <div class="chart-container" id="hour-chart" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;">
+                        <div class="analytics-card glass" style="grid-column: 1 / -1;">
+                            <h3>Weekly Volume Distribution</h3>
+                            <div class="chart-container" id="day-chart">
                                 <!-- Styled CSS Bars -->
                             </div>
                         </div>
