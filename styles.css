@@ -2360,3 +2360,107 @@ body {
     color: var(--cyan);
     border: 1px solid rgba(0, 229, 255, 0.3);
 }
+
+/* Admin Tab Styles */
+.admin-container {
+    padding: 1rem 0;
+}
+
+.admin-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 2rem;
+    margin-top: 1.5rem;
+}
+
+.admin-card {
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.2rem;
+}
+
+.admin-card h3 {
+    font-size: 1.1rem;
+    color: var(--cyan);
+    letter-spacing: 1px;
+}
+
+.admin-card-desc {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+.admin-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.admin-list {
+    margin-top: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    max-height: 300px;
+    overflow-y: auto;
+    padding-right: 0.5rem;
+}
+
+.admin-item {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.85rem;
+}
+
+.admin-item .item-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+}
+
+.admin-item .item-id {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    font-family: monospace;
+}
+
+.remove-btn {
+    background: transparent;
+    border: none;
+    color: var(--red);
+    cursor: pointer;
+    opacity: 0.6;
+    transition: opacity 0.2s;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.remove-btn:hover {
+    opacity: 1;
+}
+
+.incident-card.attended::before {
+    background: var(--green);
+    box-shadow: 0 0 15px rgba(0, 255, 136, 0.3);
+}
+
+.status-badge {
+    font-size: 0.6rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    text-transform: uppercase;
+    font-weight: 700;
+}
+
+.status-badge.attended {
+    background: rgba(0, 255, 136, 0.1);
+    color: var(--green);
+    border: 1px solid rgba(0, 255, 136, 0.3);
+}

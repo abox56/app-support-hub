@@ -506,13 +506,18 @@ function renderIncidentCard(inc) {
     // Aggregation counter
     const msgCount = inc.updates ? inc.updates.length : 1;
     
+    const isAttended = inc.status === 'Attended';
+    
     const card = document.createElement('div');
-    card.className = `incident-card ${isCritical ? 'critical' : ''}`;
+    card.className = `incident-card ${isCritical ? 'critical' : ''} ${isAttended ? 'attended' : ''}`;
     
     const header = `
         <div class="incident-card-header">
             <span class="incident-category">${inc.category || '[GENERAL]'}</span>
-            ${msgCount > 1 ? `<span class="aggregation-counter">x${msgCount} Messages</span>` : ''}
+            <div style="display: flex; gap: 0.5rem; align-items: center;">
+                ${isAttended ? `<span class="status-badge attended">Attended</span>` : ''}
+                ${msgCount > 1 ? `<span class="aggregation-counter">x${msgCount} Messages</span>` : ''}
+            </div>
         </div>
     `;
 
@@ -525,7 +530,7 @@ function renderIncidentCard(inc) {
     const footer = `
         <div class="incident-footer">
             <div class="incident-meta">
-                <span class="time-ago">Last update at ${timeStr} • Engine: ${inc.engine || 'Unknown'}</span>
+                <span class="time-ago">Last update at ${timeStr} • ${isAttended ? `Attended by ${inc.assigned_to}` : `Engine: ${inc.engine || 'Unknown'}`}</span>
                 <span class="source-group">${inc.source || 'Direct Hub'}</span>
             </div>
             ${isPIC() ? `<button class="notify-btn" onclick="event.stopPropagation(); resolveIncident('${inc.id}')">Resolve</button>` : ''}
@@ -874,6 +879,7 @@ function switchTab(tabId, buttonElement) {
 
     if (tabId === 'database') loadRawLogs();
     if (tabId === 'autoshift') renderAutoShiftUI();
+    if (tabId === 'admin') loadAdminData();
 }
 
 let currentLogPage = 0;
@@ -1199,4 +1205,94 @@ function renderAutoShiftUI() {
 
         grid.appendChild(card);
     });
+}
+
+// --- Admin Configuration Logic ---
+
+async function loadAdminData() {
+    try {
+        // Load Whitelist
+        const wRes = await apiFetch('/api/config/whitelist');
+        const whitelist = await wRes.json();
+        const wList = document.getElementById('whitelist-list');
+        if (wList) {
+            wList.innerHTML = whitelist.map(item => `
+                <div class="admin-item">
+                    <div class="item-info">
+                        <span class="item-id">ID: ${item.chat_id}</span>
+                        <span>${item.title}</span>
+                    </div>
+                    <button class="remove-btn" onclick="removeFromWhitelist('${item.chat_id}')">REMOVE</button>
+                </div>
+            `).join('') || '<p style="text-align:center; opacity: 0.5; padding: 1rem;">No whitelisted chats (Detecting all).</p>';
+        }
+
+        // Load Support Team
+        const sRes = await apiFetch('/api/config/support-team');
+        const supportMembers = await sRes.json();
+        const sList = document.getElementById('support-team-list');
+        if (sList) {
+            sList.innerHTML = supportMembers.map(item => `
+                <div class="admin-item">
+                    <div class="item-info">
+                        <span class="item-id">UID: ${item.user_id}</span>
+                        <span>${item.name}</span>
+                    </div>
+                    <button class="remove-btn" onclick="removeFromSupportTeam('${item.user_id}')">REMOVE</button>
+                </div>
+            `).join('') || '<p style="text-align:center; opacity: 0.5; padding: 1rem;">No support members defined.</p>';
+        }
+    } catch (e) {
+        console.error("Failed to load admin data:", e);
+    }
+}
+
+async function addToWhitelist() {
+    const chatId = document.getElementById('whitelist-chat-id').value.trim();
+    const title = document.getElementById('whitelist-title').value.trim();
+    if (!chatId || !title) return alert("Chat ID and Title are required");
+
+    try {
+        await apiFetch('/api/config/whitelist', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chat_id: chatId, title: title })
+        });
+        document.getElementById('whitelist-chat-id').value = '';
+        document.getElementById('whitelist-title').value = '';
+        loadAdminData();
+    } catch (e) { alert("Failed to add chat: " + e.message); }
+}
+
+async function removeFromWhitelist(id) {
+    if (!confirm("Remove this chat from whitelist?")) return;
+    try {
+        await apiFetch(`/api/config/whitelist/${id}`, { method: 'DELETE' });
+        loadAdminData();
+    } catch (e) { alert("Failed to remove: " + e.message); }
+}
+
+async function addToSupportTeam() {
+    const userId = document.getElementById('support-user-id').value.trim();
+    const name = document.getElementById('support-name').value.trim();
+    if (!userId || !name) return alert("User ID and Name are required");
+
+    try {
+        await apiFetch('/api/config/support-team', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: userId, name: name })
+        });
+        document.getElementById('support-user-id').value = '';
+        document.getElementById('support-name').value = '';
+        loadAdminData();
+    } catch (e) { alert("Failed to add member: " + e.message); }
+}
+
+async function removeFromSupportTeam(id) {
+    if (!confirm("Remove this member from support team?")) return;
+    try {
+        await apiFetch(`/api/config/support-team/${id}`, { method: 'DELETE' });
+        loadAdminData();
+    } catch (e) { alert("Failed to remove: " + e.message); }
 }

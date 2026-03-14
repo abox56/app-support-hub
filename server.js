@@ -96,6 +96,7 @@ let db;
                     content TEXT,
                     msg_id BIGINT,
                     chat_id VARCHAR(255),
+                    is_support BOOLEAN DEFAULT FALSE,
                     INDEX(incident_id)
                 );
                 CREATE TABLE IF NOT EXISTS message_analysis_logs (
@@ -128,6 +129,16 @@ let db;
                     INDEX(week_id),
                     INDEX(day_name)
                 );
+                CREATE TABLE IF NOT EXISTS whitelisted_chats (
+                    chat_id VARCHAR(255) PRIMARY KEY,
+                    title VARCHAR(255)
+                );
+                CREATE TABLE IF NOT EXISTS support_members (
+                    user_id VARCHAR(255) PRIMARY KEY,
+                    name VARCHAR(255)
+                );
+                -- Ensure column is there for existing setups
+                ALTER TABLE incident_updates ADD COLUMN is_support BOOLEAN DEFAULT FALSE;
             `);
             console.log("✅ MySQL Database schema fully initialized.");
         } catch (e) {
@@ -167,6 +178,7 @@ let db;
                 content TEXT,
                 msg_id INTEGER,
                 chat_id TEXT,
+                is_support BOOLEAN DEFAULT FALSE,
                 FOREIGN KEY(incident_id) REFERENCES incidents(id)
             );
             CREATE TABLE IF NOT EXISTS message_analysis_logs (
@@ -198,6 +210,17 @@ let db;
                 shift_status TEXT,
                 FOREIGN KEY(week_id) REFERENCES roster_weeks(id)
             );
+            CREATE TABLE IF NOT EXISTS whitelisted_chats (
+                chat_id TEXT PRIMARY KEY,
+                title TEXT
+            );
+            CREATE TABLE IF NOT EXISTS support_members (
+                user_id TEXT PRIMARY KEY,
+                name TEXT
+            );
+            -- SQLite doesn't support ADD COLUMN IF NOT EXISTS easily in exec, 
+            -- but we can try and it will just fail if it's there
+            ALTER TABLE incident_updates ADD COLUMN is_support BOOLEAN DEFAULT FALSE;
         `);
         console.log(`✅ SQLite Database initialized at: ${dbPath}`);
     }
@@ -384,11 +407,46 @@ async function generateHandoverAI(incidents, picName) {
     }
 }
 
-async function addTelegramIncident(groupTitle, senderName, content, msgId, chatId) {
-    const analysis = await analyzeMessageAI(content);
+async function addTelegramIncident(groupTitle, senderName, content, msgId, chatId, isSupport = false, replyToMsgId = null) {
     const now = new Date();
+    
+    // If it's a support member, we primarily want to update an existing incident as "Attended"
+    if (isSupport) {
+        let incidentToUpdate = null;
+        
+        // 1. Check if they replied to a specific message that belongs to an incident
+        if (replyToMsgId) {
+            const update = await db.get(`SELECT incident_id FROM incident_updates WHERE msg_id = ?`, [replyToMsgId]);
+            if (update) incidentToUpdate = update.incident_id;
+        }
+        
+        // 2. Fallback: Find the most recent active incident in this specific chat
+        if (!incidentToUpdate && chatId) {
+            const lastInc = await db.get(
+                `SELECT id FROM incidents WHERE source = ? AND status != 'Resolved' ORDER BY last_update DESC LIMIT 1`,
+                [groupTitle]
+            );
+            if (lastInc) incidentToUpdate = lastInc.id;
+        }
 
-    // Insert into message_analysis_logs
+        if (incidentToUpdate) {
+            console.log(`👨‍💻 Support Member [${senderName}] attended incident [${incidentToUpdate}]`);
+            await db.run(
+                `UPDATE incidents SET status = 'Attended', assigned_to = ?, last_update = ? WHERE id = ?`,
+                [senderName, now.toISOString(), incidentToUpdate]
+            );
+            await db.run(
+                `INSERT INTO incident_updates (incident_id, timestamp, sender, content, msg_id, chat_id, is_support) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                [incidentToUpdate, now.toISOString(), senderName, content, msgId, chatId ? chatId.toString() : null, 1]
+            );
+            return; // Handled as attendance, don't create new incident or cluster
+        }
+    }
+
+    const analysis = await analyzeMessageAI(content);
+    
+    // Insert into message_analysis_logs (keeping raw log)
     try {
         await db.run(
             `INSERT INTO message_analysis_logs 
@@ -412,8 +470,6 @@ async function addTelegramIncident(groupTitle, senderName, content, msgId, chatI
         console.error("Failed to insert into message_analysis_logs:", e.message);
     }
 
-    // NEW PRESERVE-ALL LOGIC: No message is discarded.
-    // Categorize into NOISE if identified, but still save for analysis.
     let finalCategory = analysis.category;
     if (analysis.isNoise && analysis.confidence > 80) {
         finalCategory = "[NOISE]";
@@ -423,7 +479,7 @@ async function addTelegramIncident(groupTitle, senderName, content, msgId, chatI
     const WINDOW_MINUTES = 10;
     const WINDOW_AGO = new Date(now.getTime() - (WINDOW_MINUTES * 60 * 1000)).toISOString();
 
-    // Clustering logic
+    // Clustering logic (only for non-support or non-attending messages)
     const cluster = await db.get(
         `SELECT id FROM incidents 
          WHERE category = ? AND last_update > ? AND status != 'Resolved'
@@ -440,21 +496,21 @@ async function addTelegramIncident(groupTitle, senderName, content, msgId, chatI
             );
             // Save detail to updates table
             await db.run(
-                `INSERT INTO incident_updates (incident_id, timestamp, sender, content, msg_id, chat_id) VALUES (?, ?, ?, ?, ?, ?)`,
-                [cluster.id, now.toISOString(), senderName, content, msgId, chatId ? chatId.toString() : null]
+                `INSERT INTO incident_updates (incident_id, timestamp, sender, content, msg_id, chat_id, is_support) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                [cluster.id, now.toISOString(), senderName, content, msgId, chatId ? chatId.toString() : null, isSupport ? 1 : 0]
             );
             console.log(`🔗 Clustered with incident [${cluster.id}] (${finalCategory})`);
         } else {
-            // Create new incident (even for Noise)
+            // Create new incident
             const id = Date.now().toString();
             await db.run(
                 `INSERT INTO incidents (id, first_timestamp, last_update, category, main_content, ai_summary, status, assigned_to, source, duration_minutes, message_ids, engine)
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                [id, now.toISOString(), now.toISOString(), finalCategory, content, analysis.summary || "System Capture", 'Captured', 'System', groupTitle, 0, JSON.stringify([msgId]), analysis.engine]
+                [id, now.toISOString(), now.toISOString(), finalCategory, content, analysis.summary || "System Capture", 'Captured', isSupport ? senderName : 'System', groupTitle, 0, JSON.stringify([msgId]), analysis.engine]
             );
             await db.run(
-                `INSERT INTO incident_updates (incident_id, timestamp, sender, content, msg_id, chat_id) VALUES (?, ?, ?, ?, ?, ?)`,
-                [id, now.toISOString(), senderName, content, msgId, chatId ? chatId.toString() : null]
+                `INSERT INTO incident_updates (incident_id, timestamp, sender, content, msg_id, chat_id, is_support) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                [id, now.toISOString(), senderName, content, msgId, chatId ? chatId.toString() : null, isSupport ? 1 : 0]
             );
             console.log(`🆕 New Activity Created [${id}] (${finalCategory})`);
         }
@@ -497,23 +553,37 @@ async function initTelegram() {
         tgClient.addEventHandler(async (event) => {
             const message = event.message;
             if (!message || !message.text) return;
+            
             const chat = await message.getChat();
             const sender = await message.getSender();
-            
-            // LOG EVERYTHING BEFORE FILTERING
-            const groupTitle = chat.title || "Private Chat";
-            const senderName = sender ? (sender.firstName || sender.username || "Unknown") : "Unknown";
-            console.log(`[${new Date().toLocaleTimeString()}] 📥 RAW MSG from [${groupTitle}] by [${senderName}]: ${message.text.trim().substring(0, 50)}`);
+            if (!chat || !sender) return;
 
-            if (chat instanceof Api.Chat || chat instanceof Api.Channel) {
-                const groupTitle = chat.title || "Unknown Group";
-                const senderName = sender ? (sender.firstName || sender.username || "Unknown") : "Unknown";
-                const content = message.text.trim();
-                const msgId = message.id;
-                const chatId = chat.id;
-                
-                await addTelegramIncident(groupTitle, senderName, content, msgId, chatId);
+            const chatId = chat.id.toString();
+            const senderId = sender.id.toString();
+            const groupTitle = chat.title || (chat.firstName ? chat.firstName : "Private Chat");
+            const senderName = (sender.firstName || sender.username || "Unknown");
+
+            // 1. Whitelist Check
+            const whitelist = await db.all(`SELECT chat_id FROM whitelisted_chats`);
+            if (whitelist.length > 0) {
+                const isWhitelisted = whitelist.some(w => String(w.chat_id) === chatId);
+                if (!isWhitelisted) {
+                    // Optional: Log once per chat to avoid spamming console
+                    return; 
+                }
             }
+
+            // 2. Support Member Check
+            const supportTeam = await db.all(`SELECT user_id FROM support_members`);
+            const isSupport = supportTeam.some(s => String(s.user_id) === senderId);
+
+            console.log(`[${new Date().toLocaleTimeString()}] 📥 MSG from [${groupTitle}] by [${senderName}]${isSupport ? ' (SUPPORT)' : ''}`);
+
+            const content = message.text.trim();
+            const msgId = message.id;
+            const replyToMsgId = message.replyTo ? message.replyTo.replyToMsgId : null;
+            
+            await addTelegramIncident(groupTitle, senderName, content, msgId, chatId, isSupport, replyToMsgId);
         }, new NewMessage({}));
     } catch (e) {
         console.error("❌ Telegram Client Failed to Start:", e.message);
@@ -684,6 +754,61 @@ app.post('/api/admin/bulk-recategorize', async (req, res) => {
         console.error("Bulk Redux Error:", e);
         res.status(500).json({ error: e.message });
     }
+});
+
+// API: Manage Whitelist & Support Members
+app.get('/api/config/whitelist', async (req, res) => {
+    try {
+        const chats = await db.all(`SELECT * FROM whitelisted_chats`);
+        res.json(chats);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/config/whitelist', async (req, res) => {
+    const { chat_id, title } = req.body;
+    try {
+        await db.run(`INSERT INTO whitelisted_chats (chat_id, title) VALUES (?, ?) ON DUPLICATE KEY UPDATE title = ?`, [chat_id, title, title]);
+        res.json({ success: true });
+    } catch (e) { 
+        try {
+            await db.run(`INSERT OR REPLACE INTO whitelisted_chats (chat_id, title) VALUES (?, ?)`, [chat_id, title]);
+            res.json({ success: true });
+        } catch (e2) { res.status(500).json({ error: e2.message }); }
+    }
+});
+
+app.delete('/api/config/whitelist/:id', async (req, res) => {
+    try {
+        await db.run(`DELETE FROM whitelisted_chats WHERE chat_id = ?`, [req.params.id]);
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/config/support-team', async (req, res) => {
+    try {
+        const members = await db.all(`SELECT * FROM support_members`);
+        res.json(members);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/config/support-team', async (req, res) => {
+    const { user_id, name } = req.body;
+    try {
+        await db.run(`INSERT INTO support_members (user_id, name) VALUES (?, ?) ON DUPLICATE KEY UPDATE name = ?`, [user_id, name, name]);
+        res.json({ success: true });
+    } catch (e) {
+        try {
+            await db.run(`INSERT OR REPLACE INTO support_members (user_id, name) VALUES (?, ?)`, [user_id, name]);
+            res.json({ success: true });
+        } catch (e2) { res.status(500).json({ error: e2.message }); }
+    }
+});
+
+app.delete('/api/config/support-team/:id', async (req, res) => {
+    try {
+        await db.run(`DELETE FROM support_members WHERE user_id = ?`, [req.params.id]);
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // API: Generate AI Handover
