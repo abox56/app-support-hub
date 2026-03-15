@@ -683,15 +683,30 @@ async function initTelegram() {
                     supportStats.push({ name: member.name, total_attended: attended.count });
                 }
                 const summaryReport = await generateDailySummaryAI(incidents, supportStats);
-                if (summaryReport && tgClient && tgClient.connected) {
-                    const adminId = process.env.ADMIN_TG_ID;
-                    if (adminId) {
-                        await tgClient.sendMessage(adminId, { message: summaryReport, parseMode: 'markdown' });
-                        return res.json({ success: true, message: "Summary sent to Admin ID" });
-                    }
+                
+                if (!summaryReport) {
+                    return res.status(400).json({ success: false, error: "AI failed to generate summary (Check GEMINI_API_KEY)" });
                 }
-                res.status(400).json({ success: false, error: "Report failed or no Admin ID" });
-            } catch (err) { res.status(500).json({ error: err.message }); }
+                
+                if (!tgClient || !tgClient.connected) {
+                    return res.status(400).json({ success: false, error: "Telegram Client is NOT connected (Check TG_SESSION)" });
+                }
+
+                const adminId = process.env.ADMIN_TG_ID;
+                if (!adminId) {
+                    return res.status(400).json({ success: false, error: "ADMIN_TG_ID is not set in environment variables" });
+                }
+
+                try {
+                    await tgClient.sendMessage(adminId, { message: summaryReport, parseMode: 'markdown' });
+                    return res.json({ success: true, message: "Summary sent to Admin ID" });
+                } catch (sendErr) {
+                    return res.status(500).json({ success: false, error: "Telegram Send Failed: " + sendErr.message });
+                }
+            } catch (err) { 
+                console.error("Test Summary Error:", err);
+                res.status(500).json({ error: err.message }); 
+            }
         });
 
     } catch (e) {
