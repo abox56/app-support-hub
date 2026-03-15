@@ -1406,3 +1406,26 @@ async function removeFromSupportTeam(id) {
         loadAdminData();
     } catch (e) { alert("Failed to remove: " + e.message); }
 }
+
+async function triggerTestReport() {
+    const btn = document.querySelector('button[onclick="triggerTestReport()"]');
+    const originalText = btn.textContent;
+    btn.textContent = "⏳ Generating...";
+    btn.disabled = true;
+
+    try {
+        const response = await apiFetch('/api/test-summary', { method: 'POST' });
+        const data = await response.json();
+        
+        if (data.success) {
+            alert("✅ Success! Test report has been sent to your private Telegram.");
+        } else {
+            alert("❌ Error: " + (data.error || "Check if ADMIN_TG_ID is set in .env"));
+        }
+    } catch (e) {
+        alert("❌ Failed to trigger: " + e.message);
+    } finally {
+        btn.textContent = originalText;
+        btn.disabled = false;
+    }
+}
