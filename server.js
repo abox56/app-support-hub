@@ -618,6 +618,16 @@ async function initTelegram() {
             const msgId = message.id;
             const replyToMsgId = message.replyTo ? message.replyTo.replyToMsgId : null;
             
+            // Helpful command to identify User ID
+            if (content.toLowerCase() === '/myid') {
+                await tgClient.sendMessage(chatId, {
+                    message: `📌 Your Telegram User ID is: \`${senderId}\`\n\nUse this ID as ADMIN_TG_ID in your .env file to receive private summaries.`,
+                    replyTo: msgId,
+                    parseMode: 'markdown'
+                });
+                return;
+            }
+
             await addTelegramIncident(groupTitle, senderName, content, msgId, chatId, isSupport, replyToMsgId);
         }, new NewMessage({}));
 
@@ -848,7 +858,6 @@ app.post('/api/ai-suggest-reply', async (req, res) => {
                             replyTo: update.msg_id,
                             parseMode: 'markdown'
                         });
-                        break; 
                     } catch (err) { console.error("Reply fail:", err); }
                 }
             }
