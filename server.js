@@ -670,6 +670,30 @@ async function initTelegram() {
             }
         });
 
+        // --- TEST ENDPOINT FOR SUMMARY ---
+        app.post('/api/test-summary', async (req, res) => {
+            console.log("🛠️ Manual Trigger: Generating Test Summary...");
+            try {
+                const TWENTY_FOUR_HOURS_AGO = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+                const incidents = await db.all(`SELECT * FROM incidents WHERE last_update > ?`, [TWENTY_FOUR_HOURS_AGO]);
+                const supportTeam = await db.all(`SELECT * FROM support_members`);
+                const supportStats = [];
+                for (const member of supportTeam) {
+                    const attended = await db.get(`SELECT COUNT(*) as count FROM incidents WHERE assigned_to = ? AND last_update > ?`, [member.name, TWENTY_FOUR_HOURS_AGO]);
+                    supportStats.push({ name: member.name, total_attended: attended.count });
+                }
+                const summaryReport = await generateDailySummaryAI(incidents, supportStats);
+                if (summaryReport && tgClient && tgClient.connected) {
+                    const adminId = process.env.ADMIN_TG_ID;
+                    if (adminId) {
+                        await tgClient.sendMessage(adminId, { message: summaryReport, parseMode: 'markdown' });
+                        return res.json({ success: true, message: "Summary sent to Admin ID" });
+                    }
+                }
+                res.status(400).json({ success: false, error: "Report failed or no Admin ID" });
+            } catch (err) { res.status(500).json({ error: err.message }); }
+        });
+
     } catch (e) {
         console.error("❌ Telegram Client Failed to Start:", e.message);
     }
