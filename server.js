@@ -2,13 +2,13 @@ require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
-require('dotenv').config();
 const { TelegramClient, Api } = require("telegram");
 const { StringSession } = require("telegram/sessions");
 const { NewMessage } = require("telegram/events");
 const sqlite3 = require('sqlite3').verbose();
 const { open } = require('sqlite');
 const mysql = require('mysql2/promise');
+const cron = require('node-cron');
 
 const app = express();
 app.use(express.json());
@@ -407,6 +407,41 @@ async function generateHandoverAI(incidents, picName) {
     }
 }
 
+async function generateDailySummaryAI(incidents, supportActivities) {
+    if (!process.env.GEMINI_API_KEY) return null;
+
+    const dateStr = new Date().toLocaleDateString('en-SG', { day: '2-digit', month: 'long', year: 'numeric' });
+    
+    const incSummary = incidents.map(i => `[${i.category}] ${i.ai_summary || i.main_content} (Group: ${i.source}) [${i.status}]`).join('\n') || 'No major issues captured.';
+    const supportSummary = supportActivities.map(s => `- ${s.name}: ${s.total_attended} incidents attended`).join('\n') || 'No support activity recorded.';
+
+    const prompt = `
+    Generate a 24-Hour Executive Summary for the Cloudway Application Support Hub.
+    Date: ${dateStr}
+
+    INCIDENT OVERVIEW (LAST 24H):
+    ${incSummary}
+
+    SUPPORT TEAM PERFORMANCE:
+    ${supportSummary}
+
+    REQUIREMENTS:
+    1. Header: 📊 *DAILY SUPPORT HUB EXECUTIVE SUMMARY* 📊
+    2. Be professional, concise, and highlight if there were many [PROVIDER_ALERTS] or [SYSTEM_LOGS].
+    3. Specifically mention how many incidents were successfully "Attended" by the team.
+    4. Provide a "Security/Stability Score" (e.g. 95%).
+    5. Formatting: Use Telegram Markdown.
+    `;
+
+    try {
+        const result = await primaryModel.generateContent(prompt);
+        return (await result.response).text();
+    } catch (e) {
+        console.error("Daily Summary AI fail:", e.message);
+        return null;
+    }
+}
+
 async function addTelegramIncident(groupTitle, senderName, content, msgId, chatId, isSupport = false, replyToMsgId = null) {
     const now = new Date();
     
@@ -585,6 +620,46 @@ async function initTelegram() {
             
             await addTelegramIncident(groupTitle, senderName, content, msgId, chatId, isSupport, replyToMsgId);
         }, new NewMessage({}));
+
+        // --- SCHEDULED DAILY SUMMARY (10 AM) ---
+        cron.schedule('0 10 * * *', async () => {
+            console.log("⏰ 10:00 AM Cron: Generating Daily Summary...");
+            try {
+                const TWENTY_FOUR_HOURS_AGO = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+                
+                // Fetch recent incidents
+                const incidents = await db.all(`SELECT * FROM incidents WHERE last_update > ?`, [TWENTY_FOUR_HOURS_AGO]);
+                
+                // Fetch support stats
+                const supportTeam = await db.all(`SELECT * FROM support_members`);
+                const supportStats = [];
+                for (const member of supportTeam) {
+                    const attended = await db.get(`SELECT COUNT(*) as count FROM incidents WHERE assigned_to = ? AND last_update > ?`, [member.name, TWENTY_FOUR_HOURS_AGO]);
+                    supportStats.push({ name: member.name, total_attended: attended.count });
+                }
+
+                const summaryReport = await generateDailySummaryAI(incidents, supportStats);
+                
+                if (summaryReport && tgClient && tgClient.connected) {
+                    // Send to specific Admin ID if defined, otherwise send to all whitelisted chats as a fallback report
+                    const adminId = process.env.ADMIN_TG_ID;
+                    if (adminId) {
+                        await tgClient.sendMessage(adminId, { message: summaryReport, parseMode: 'markdown' });
+                        console.log("✅ Daily Summary sent to Admin.");
+                    } else {
+                        // If no Admin ID, send to first whitelisted chat as a broadcast
+                        const whitelist = await db.all(`SELECT chat_id FROM whitelisted_chats LIMIT 1`);
+                        if (whitelist.length > 0) {
+                            await tgClient.sendMessage(whitelist[0].chat_id, { message: summaryReport, parseMode: 'markdown' });
+                            console.log("✅ Daily Summary broadcast to first whitelisted chat.");
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error("❌ Cron Summary Failed:", err.message);
+            }
+        });
+
     } catch (e) {
         console.error("❌ Telegram Client Failed to Start:", e.message);
     }
@@ -598,183 +673,87 @@ app.get('/api/ai-status', (req, res) => {
     const hasKey = !!process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== "";
     res.json({ 
         active: hasKey, 
-        engine: hasKey ? 'Gemini 3 Flash' : 'Keyword Fallback' 
+        engine: 'Gemini (Triple Flash)',
+        capabilities: ['Real-time Analysis', 'Handover Logic', 'Daily Summaries']
     });
 });
 
-// API: Telegram Diagnostics
+// API: TG Diagnostics
 app.get('/api/tg-diagnostics', async (req, res) => {
     try {
-        if (!tgClient || !tgClient.connected) {
-            return res.json({ connected: false, message: "TG Client not connected" });
-        }
-        
-        // Timeout wrapper for dialogs to prevent hanging
-        const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error("Telegram response timeout")), 10000));
-        const dialogsPromise = tgClient.getDialogs({ limit: 10 });
-        
-        const dialogs = await Promise.race([dialogsPromise, timeout]);
-        const chats = dialogs.map(d => ({
-            id: d.id.toString(),
-            title: d.title,
-            unreadCount: d.unreadCount,
-            lastMessage: d.message ? d.message.message?.substring(0, 30) + '...' : 'No msg'
-        }));
-        res.json({ connected: true, chatCount: chats.length, chats });
-    } catch (e) {
-        console.error("Diagnostic Error:", e.message);
-        res.status(500).json({ error: e.message });
-    }
+        const isConnected = tgClient && tgClient.connected;
+        let me = null;
+        if (isConnected) me = await tgClient.getMe();
+        res.json({ connected: !!isConnected, user: me?.username || null });
+    } catch (e) { res.json({ connected: false, error: e.message }); }
 });
 
-// Simple categorization engine
-function categorizeIncident(content) {
-    const text = content.toLowerCase();
-    if (text.includes('smi') || text.includes('latency')) return 'SMI Monitoring';
-    if (text.includes('evolution') || text.includes('pragmatic') || text.includes('provider') || text.includes('mistally') || text.includes('pp-') || text.includes('evo-')) return 'Provider API';
-    if (text.includes('ticket') || text.includes('customer') || text.includes('balance') || text.includes('intally') || text.includes('missing')) return 'Customer Support';
-    if (text.includes('database') || text.includes('db') || text.includes('node-') || text.includes('unstable') || text.includes('slow')) return 'System Infra';
-    return 'General Ops';
-}
-
-// API Endpoint to send handover
-app.post('/api/send-handover', async (req, res) => {
-    const { message, target } = req.body;
-
-    if (!message || !target) {
-        return res.status(400).json({ error: "Message and target are required." });
-    }
-
-    try {
-        if (!tgClient || !tgClient.connected) {
-            await initTelegram();
-        }
-
-        // Target can be a username, group ID, or 'me'
-        await tgClient.sendMessage(target, { message: message, parseMode: 'markdown' });
-        res.json({ success: true, status: "Message sent successfully!" });
-    } catch (error) {
-        console.error("Telegram Error:", error);
-        res.status(500).json({ error: "Failed to send message: " + error.message });
-    }
-});
-
-// API: Get all incidents (last 100 for feed)
+// GET: All Incidents (last 30 days default)
 app.get('/api/incidents', async (req, res) => {
     try {
-        const incidents = await db.all(`SELECT * FROM incidents ORDER BY last_update DESC LIMIT 100`);
-        for (let inc of incidents) {
-            inc.updates = await db.all(`SELECT * FROM incident_updates WHERE incident_id = ? ORDER BY timestamp ASC`, [inc.id]);
-        }
-        res.json(incidents);
+        const rows = await db.all(`SELECT * FROM incidents ORDER BY last_update DESC`);
+        res.json(rows);
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// API: Get Raw Message Logs (paginated)
-app.get('/api/raw-logs', async (req, res) => {
+// GET: Single Incident Updates
+app.get('/api/incidents/:id/updates', async (req, res) => {
     try {
-        const page = parseInt(req.query.page) || 0;
-        const limit = 50;
-        const offset = page * limit;
-        const logs = await db.all(`
-            SELECT u.timestamp, u.sender, u.content, i.category, i.source 
-            FROM incident_updates u 
-            LEFT JOIN incidents i ON u.incident_id = i.id 
-            ORDER BY u.timestamp DESC LIMIT ? OFFSET ?`, 
-            [limit, offset]
-        );
-        res.json(logs);
+        const rows = await db.all(`SELECT * FROM incident_updates WHERE incident_id = ? ORDER BY timestamp ASC`, [req.params.id]);
+        res.json(rows);
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// API: Download Database Backup
-app.get('/api/download-db', (req, res) => {
-    const dbPath = process.env.DB_PATH || path.join(__dirname, 'hub_storage.db');
-    if (fs.existsSync(dbPath)) {
-        res.download(dbPath, `hub_backup_${new Date().toISOString().split('T')[0]}.db`);
-    } else {
-        res.status(404).send("Database file not found.");
-    }
-});
-
-// API: Bulk Recategorize with Gemini 3
-app.post('/api/admin/bulk-recategorize', async (req, res) => {
+// POST: Resolve Incident
+app.post('/api/incidents/:id/resolve', async (req, res) => {
     try {
-        console.log("🚀 Starting Bulk Recategorization with Gemini 3 Flash...");
-        
-        // 1. Get incidents that aren't Gemini 3
-        const incidents = await db.all(`SELECT id, main_content FROM incidents WHERE engine NOT LIKE '%Gemini 3%' OR engine IS NULL`);
-        let incCount = 0;
-
-        for (const inc of incidents) {
-            try {
-                const analysis = await analyzeMessageAI(inc.main_content);
-                if (analysis && analysis.engine.includes('Gemini 3')) {
-                    await db.run(
-                        `UPDATE incidents SET category = ?, ai_summary = ?, engine = ? WHERE id = ?`,
-                        [analysis.category, analysis.summary, analysis.engine, inc.id]
-                    );
-                    incCount++;
-                }
-                // Small sleep to avoid throttling
-                await new Promise(r => setTimeout(r, 200));
-            } catch (err) {
-                console.error(`Failed to recat incident ${inc.id}:`, err.message);
-            }
-        }
-
-        // 2. Get raw logs (message_analysis_logs)
-        // Note: We limit this to last 100 to prevent infinite loop / timeout
-        const logs = await db.all(`SELECT id, content FROM message_analysis_logs WHERE engine NOT LIKE '%Gemini 3%' OR engine IS NULL LIMIT 100`);
-        let logCount = 0;
-
-        for (const log of logs) {
-            try {
-                const analysis = await analyzeMessageAI(log.content);
-                if (analysis && analysis.engine.includes('Gemini 3')) {
-                    await db.run(
-                        `UPDATE message_analysis_logs SET ai_category = ?, ai_summary = ?, engine = ?, is_noise = ?, confidence = ? WHERE id = ?`,
-                        [analysis.category, analysis.summary, analysis.engine, analysis.isNoise ? 1 : 0, analysis.confidence, log.id]
-                    );
-                    logCount++;
-                }
-                await new Promise(r => setTimeout(r, 200));
-            } catch (err) {
-                console.error(`Failed to recat log ${log.id}:`, err.message);
-            }
-        }
-
-        res.json({ 
-            success: true, 
-            incidents_updated: incCount, 
-            logs_updated: logCount,
-            message: `Successfully re-processed ${incCount} incidents and ${logCount} raw logs using Gemini 3 Flash core.`
-        });
-    } catch (e) {
-        console.error("Bulk Redux Error:", e);
-        res.status(500).json({ error: e.message });
-    }
+        await db.run(`UPDATE incidents SET status = 'Resolved', last_update = ? WHERE id = ?`, [new Date().toISOString(), req.params.id]);
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// API: Manage Whitelist & Support Members
+// API: Bulk Resolve
+app.post('/api/incidents/bulk-resolve', async (req, res) => {
+    try {
+        const { ids } = req.body;
+        if (!ids || !Array.isArray(ids)) return res.status(400).json({ error: "Invalid IDs" });
+        const placeholders = ids.map(() => '?').join(',');
+        await db.run(`UPDATE incidents SET status = 'Resolved', last_update = ? WHERE id IN (${placeholders})`, [new Date().toISOString(), ...ids]);
+        res.json({ success: true, count: ids.length });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// API: Bulk Category Change
+app.post('/api/incidents/bulk-categorize', async (req, res) => {
+    try {
+        const { ids, category } = req.body;
+        if (!ids || !category) return res.status(400).json({ error: "Missing data" });
+        const placeholders = ids.map(() => '?').join(',');
+        await db.run(`UPDATE incidents SET category = ? WHERE id IN (${placeholders})`, [category, ...ids]);
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Config: Manage Whitelist
 app.get('/api/config/whitelist', async (req, res) => {
     try {
-        const chats = await db.all(`SELECT * FROM whitelisted_chats`);
-        res.json(chats);
+        const rows = await db.all(`SELECT * FROM whitelisted_chats`);
+        res.json(rows);
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/config/whitelist', async (req, res) => {
-    const { chat_id, title } = req.body;
     try {
-        await db.run(`INSERT INTO whitelisted_chats (chat_id, title) VALUES (?, ?) ON DUPLICATE KEY UPDATE title = ?`, [chat_id, title, title]);
+        const { chat_id, title } = req.body;
+        // Upsert style
+        const existing = await db.get(`SELECT * FROM whitelisted_chats WHERE chat_id = ?`, [chat_id]);
+        if (existing) {
+            await db.run(`UPDATE whitelisted_chats SET title = ? WHERE chat_id = ?`, [title, chat_id]);
+        } else {
+            await db.run(`INSERT INTO whitelisted_chats (chat_id, title) VALUES (?, ?)`, [chat_id, title]);
+        }
         res.json({ success: true });
-    } catch (e) { 
-        try {
-            await db.run(`INSERT OR REPLACE INTO whitelisted_chats (chat_id, title) VALUES (?, ?)`, [chat_id, title]);
-            res.json({ success: true });
-        } catch (e2) { res.status(500).json({ error: e2.message }); }
-    }
+    } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.delete('/api/config/whitelist/:id', async (req, res) => {
@@ -784,24 +763,25 @@ app.delete('/api/config/whitelist/:id', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// Config: Manage Support Team
 app.get('/api/config/support-team', async (req, res) => {
     try {
-        const members = await db.all(`SELECT * FROM support_members`);
-        res.json(members);
+        const rows = await db.all(`SELECT * FROM support_members`);
+        res.json(rows);
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/config/support-team', async (req, res) => {
-    const { user_id, name } = req.body;
     try {
-        await db.run(`INSERT INTO support_members (user_id, name) VALUES (?, ?) ON DUPLICATE KEY UPDATE name = ?`, [user_id, name, name]);
+        const { user_id, name } = req.body;
+        const existing = await db.get(`SELECT * FROM support_members WHERE user_id = ?`, [user_id]);
+        if (existing) {
+            await db.run(`UPDATE support_members SET name = ? WHERE user_id = ?`, [name, user_id]);
+        } else {
+            await db.run(`INSERT INTO support_members (user_id, name) VALUES (?, ?)`, [user_id, name]);
+        }
         res.json({ success: true });
-    } catch (e) {
-        try {
-            await db.run(`INSERT OR REPLACE INTO support_members (user_id, name) VALUES (?, ?)`, [user_id, name]);
-            res.json({ success: true });
-        } catch (e2) { res.status(500).json({ error: e2.message }); }
-    }
+    } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.delete('/api/config/support-team/:id', async (req, res) => {
@@ -811,72 +791,56 @@ app.delete('/api/config/support-team/:id', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// API: Generate AI Handover
-app.post('/api/generate-handover', async (req, res) => {
+// API: AI Handover Report
+app.post('/api/ai-handover', async (req, res) => {
     try {
         const { picName } = req.body;
-        const now = new Date();
-        const shiftStart = new Date(now.getTime() - (8 * 60 * 60 * 1000)).toISOString(); // Last 8 hours
-
-        const incidents = await db.all(
-            `SELECT * FROM incidents WHERE last_update > ? ORDER BY last_update DESC`,
-            [shiftStart]
-        );
-
-        for (let inc of incidents) {
-            inc.updates = await db.all(`SELECT id FROM incident_updates WHERE incident_id = ?`, [inc.id]);
-        }
-
-        const aiHandover = await generateHandoverAI(incidents, picName || 'Outgoing PIC');
+        // Fetch all non-resolved incidents for today
+        const TWENTY_FOUR_HOURS_AGO = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+        const incidents = await db.all(`SELECT * FROM incidents WHERE last_update > ?`, [TWENTY_FOUR_HOURS_AGO]);
         
-        if (aiHandover) {
-            res.json({ success: true, content: aiHandover });
-        } else {
-            res.status(500).json({ error: "AI failed to generate handover" });
+        const report = await generateHandoverAI(incidents, picName);
+        if (!report) return res.status(500).json({ error: "AI failed to generate report" });
+
+        // Auto-Post to TG if possible
+        if (tgClient && tgClient.connected) {
+            // Find UFABET group or common support group
+            const whitelist = await db.all(`SELECT chat_id FROM whitelisted_chats`);
+            for (let chat of whitelist) {
+                try {
+                    await tgClient.sendMessage(chat.chat_id, { message: report, parseMode: 'markdown' });
+                } catch (e) { console.error("Post alert error:", e.message); }
+            }
         }
-    } catch (e) {
-        console.error("Handover Gen Error:", e);
-        res.status(500).json({ error: e.message });
-    }
-});
 
-// API: Log a new incident (Manual)
-app.post('/api/incidents', async (req, res) => {
-    const { content, assigned_to } = req.body;
-    if (!content) return res.status(400).json({ error: "Content is required" });
-
-    const now = new Date();
-    const id = Date.now().toString();
-    const analysis = await analyzeMessageAI(content);
-
-    try {
-        await db.run(
-            `INSERT INTO incidents (id, first_timestamp, last_update, category, main_content, ai_summary, status, assigned_to, source, duration_minutes, message_ids, engine)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [id, now.toISOString(), now.toISOString(), analysis.category, content, analysis.summary, 'Active', assigned_to || 'Unassigned', 'Manual Input', 0, "[]", analysis.engine]
-        );
-        await db.run(
-            `INSERT INTO incident_updates (incident_id, timestamp, sender, content) VALUES (?, ?, ?, ?)`,
-            [id, now.toISOString(), assigned_to || 'System', content]
-        );
-        res.json({ id, success: true });
+        res.json({ report });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// API: Resolve Incident & Notify TG
-app.post('/api/resolve-incident/:id', async (req, res) => {
-    const { id } = req.params;
+// API: AI Response Suggestion (Experimental)
+app.post('/api/ai-suggest-reply', async (req, res) => {
     try {
-        const incident = await db.get(`SELECT * FROM incidents WHERE id = ?`, [id]);
-        if (!incident) return res.status(404).json({ error: "Incident not found" });
-
-        await db.run(`UPDATE incidents SET status = 'Resolved' WHERE id = ?`, [id]);
-
-        const updates = await db.all(`SELECT DISTINCT msg_id, chat_id FROM incident_updates WHERE incident_id = ?`, [id]);
+        const { incidentId } = req.body;
+        const inc = await db.get(`SELECT * FROM incidents WHERE id = ?`, [incidentId]);
+        const updates = await db.all(`SELECT * FROM incident_updates WHERE incident_id = ?`, [incidentId]);
         
+        const prompt = `
+        Incident: ${inc.category} - ${inc.ai_summary || inc.main_content}
+        Context: ${updates.slice(-3).map(u => u.content).join(' | ')}
+        
+        Suggest a professional 1-sentence reply for the support team member to send back to the user/group.
+        `;
+        
+        const result = await primaryModel.generateContent(prompt);
+        const replyMsg = (await result.response).text().trim();
+        
+        // Opt-in: Directly reply in Telegram if we have the msg_id
         if (tgClient && tgClient.connected) {
-            const replyMsg = `✅ *Issue Resolved* by Hub PIC.\nStatus: Normal.\nCategory: ${incident.category}`;
-            for (let update of updates) {
+            const lastUpdate = updates.reverse().find(u => u.msg_id && !u.is_support);
+            if (lastUpdate) {
+                // We find the most recent non-support message to reply to
+                const rows = await db.all(`SELECT msg_id, chat_id FROM incident_updates WHERE incident_id = ? AND is_support = 0 ORDER BY timestamp DESC LIMIT 1`, [incidentId]);
+                const update = rows[0];
                 if (update.msg_id && update.chat_id) {
                     try {
                         await tgClient.sendMessage(update.chat_id, {
