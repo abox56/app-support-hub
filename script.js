@@ -399,20 +399,25 @@ function renderWeek(index) {
         <div class="matrix-header">Sun</div>
     `;
 
-    const dayKeys = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-    
-    // Determine number of rows across all days
-    let maxRows = 0;
-    dayKeys.forEach(d => { if(week.days[d] && week.days[d].length > maxRows) maxRows = week.days[d].length; });
-    
     for (let r = 0; r < maxRows; r++) {
         // Find a representative shift for this row to get the label/time
         let repShift = null;
         for(let d of dayKeys) { if(week.days[d] && week.days[d][r]) { repShift = week.days[d][r]; break; } }
         
+        let labelTitle = '';
+        if (r === 0) labelTitle = 'Early';
+        else if (r === 1) labelTitle = 'Night';
+        else if (r === 2) labelTitle = 'Backup';
+        else if (r === 3) labelTitle = 'Remark';
+
+        // Specific override for Week 1
+        if (r === 3 && week.title.includes("Week 1")) {
+            labelTitle = 'Remark : DJ AL';
+        }
+
         const labelDiv = document.createElement('div');
         labelDiv.className = 'matrix-row-label';
-        labelDiv.innerHTML = `${r === 0 ? 'Early' : r === maxRows-1 ? 'Deep Night' : 'Mid'}<br/><span>${repShift ? repShift.time : ''}</span>`;
+        labelDiv.innerHTML = `${labelTitle}<br/><span>${repShift ? repShift.time : ''}</span>`;
         grid.appendChild(labelDiv);
 
         dayKeys.forEach(day => {
@@ -452,11 +457,6 @@ function renderWeek(index) {
 
                 if (!content || content.includes('Rest Day')) shiftDiv.classList.add('off-day');
                 shiftDiv.innerHTML = content || '-';
-
-                // Cap Warning for Shawn
-                if (shawnHours >= 40 && shawn && shawn !== 'Rest Day') {
-                    shiftDiv.innerHTML += `<div class="cap-warning">⚠️ 40H CAP</div>`;
-                }
 
             } else {
                 shiftDiv.classList.add('off-day');
