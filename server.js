@@ -905,6 +905,16 @@ app.get('/api/time-bank', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// MAINTENANCE: Clear Roster (Keeping Holidays)
+app.post('/api/maintenance/reset-roster', async (req, res) => {
+    try {
+        await db.run(`DELETE FROM roster_shifts`);
+        await db.run(`DELETE FROM roster_weeks`);
+        await db.run(`DELETE FROM time_bank`);
+        res.json({ success: true, message: "Roster data wiped. Holidays preserved." });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // API: AI Handover Report
 app.post('/api/ai-handover', async (req, res) => {
     try {
