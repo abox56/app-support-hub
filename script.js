@@ -432,7 +432,7 @@ function renderWeek(index) {
         labelDiv.className = 'matrix-row-label';
         
         // Find time label for this row
-        let timeLabel = repShift ? repShift.time : '';
+        let timeLabel = (repShift && labelTitle !== 'Remark') ? repShift.time : '';
         if (r === 1 && !timeLabel && week.title.includes("Week 1")) {
             timeLabel = "19:00-01:00"; // Specific for Night shift display consistency
         }
