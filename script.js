@@ -285,6 +285,15 @@ function updateActivePIC() {
              return;
         }
 
+        // Shawn Weekend Override: He is active 10:00-01:00 on Sat/Sun
+        if ((currentDay === 'Saturday' || currentDay === 'Sunday') && week.title.includes('Week 1')) {
+            if (currentHour >= 10 || currentHour < 1) {
+                const picElement = document.getElementById('current-pic');
+                if (picElement) picElement.textContent = 'Shawn (Active)';
+                return;
+            }
+        }
+
         const shift = week.days[currentDay] ? week.days[currentDay][rowIndex] : null;
         if (!shift) return;
         
@@ -417,54 +426,73 @@ function renderWeek(index) {
         if (r === 0) labelTitle = 'Early';
         else if (r === 1) labelTitle = 'Night';
         else if (r === 2) labelTitle = 'Backup';
-        else if (r === 3) labelTitle = 'Remark';
-
-        // Specific override for Week 1
-        if (r === 3 && week.title.includes("Week 1")) {
-            labelTitle = 'Remark : DJ AL';
-        }
+        else labelTitle = 'Remark';
 
         const labelDiv = document.createElement('div');
         labelDiv.className = 'matrix-row-label';
-        labelDiv.innerHTML = `${labelTitle}<br/><span>${repShift ? repShift.time : ''}</span>`;
+        
+        // Find time label for this row
+        let timeLabel = repShift ? repShift.time : '';
+        if (r === 1 && !timeLabel && week.title.includes("Week 1")) {
+            timeLabel = "19:00-01:00"; // Specific for Night shift display consistency
+        }
+        
+        labelDiv.innerHTML = `${labelTitle}<br/><span>${timeLabel}</span>`;
         grid.appendChild(labelDiv);
 
         dayKeys.forEach(day => {
-            const shift = (week.days[day] && week.days[day][r]) ? week.days[day][r] : null;
+            let shift = (week.days[day] && week.days[day][r]) ? week.days[day][r] : null;
+            
+            // SHAWN WEEKEND OVERRIDE: Show him in Night row too
+            if (labelTitle === 'Night' && (day === 'Saturday' || day === 'Sunday') && week.title.includes('Week 1')) {
+                shift = { Shawn: 'Active (Night Part)' };
+            }
+
             const shiftDiv = document.createElement('div');
             shiftDiv.className = 'shift-card';
             
-            if (shift) {
-                // Special: Wednesday Sync Band
-                if (day === 'Wednesday' && shift.note === 'Weekly Sync Meeting') {
-                    shiftDiv.classList.add('sync-band');
-                }
-
-                // Logic for displaying people and statuses
+            if (shift || (labelTitle === 'Remark' && (day === 'Thursday' || day === 'Friday'))) {
                 let content = '';
-                const ivan = shift.Ivan;
-                const shawn = shift.Shawn;
-                const dj = shift.DJ;
-
-                if (dj === 'AL') {
+                
+                // DJ: AL REMARK OVERRIDE: Move to Remark row
+                if (labelTitle === 'Remark' && (day === 'Thursday' || day === 'Friday') && week.title.includes('Week 1')) {
                     content += `<span class="away-badge">DJ: AL</span>`;
                 }
 
-                if (shawn && shawn.includes('Offset')) {
-                    content += `<div class="offset-shift-box">Shawn: 19:00-01:00</div>`;
-                } else if (shawn && shawn !== 'Rest Day' && shawn !== 'AL') {
-                     content += (content ? ' / ' : '') + 'Shawn';
+                if (shift) {
+                    if (day === 'Wednesday' && shift.note === 'Weekly Sync Meeting') {
+                        shiftDiv.classList.add('sync-band');
+                    }
+
+                    const ivan = shift.Ivan;
+                    const shawn = shift.Shawn;
+                    const dj = shift.DJ;
+
+                    // Skip showing DJ: AL in the original Backup row
+                    if (dj === 'AL' && labelTitle !== 'Remark') {
+                        // Don't add to content here, handled in Remark row
+                    } else if (dj === 'AL') {
+                        content += `<span class="away-badge">DJ: AL</span>`;
+                    }
+
+                    if (shawn && typeof shawn === 'string' && shawn.includes('Offset')) {
+                        content += `<div class="offset-shift-box">Shawn: 19:00-01:00</div>`;
+                    } else if (shawn && shawn !== 'Rest Day' && shawn !== 'AL') {
+                         content += (content ? ' / ' : '') + 'Shawn';
+                    }
+
+                    if (ivan && ivan !== 'Rest Day' && ivan !== 'AL') {
+                         content += (content ? ' / ' : '') + 'Ivan';
+                    }
+                    
+                    if (dj && dj !== 'Rest Day' && dj !== 'AL') {
+                         content += (content ? ' / ' : '') + 'DJ';
+                    }
                 }
 
-                if (ivan && ivan !== 'Rest Day' && ivan !== 'AL') {
-                     content += (content ? ' / ' : '') + 'Ivan';
+                if (!content || (typeof content === 'string' && content.includes('Rest Day'))) {
+                    shiftDiv.classList.add('off-day');
                 }
-                
-                if (dj && dj !== 'Rest Day' && dj !== 'AL') {
-                     content += (content ? ' / ' : '') + 'DJ';
-                }
-
-                if (!content || content.includes('Rest Day')) shiftDiv.classList.add('off-day');
                 shiftDiv.innerHTML = content || '-';
 
             } else {
