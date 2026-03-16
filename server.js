@@ -999,6 +999,73 @@ app.get('/api/roster', (req, res) => {
     }
 });
 
+// API: Generate Weekly Roster
+app.post('/api/roster/generate', (req, res) => {
+    try {
+        const { dateRange, title, early, night, backup } = req.body;
+        if (!dateRange || !title || !early || !night || !backup) {
+            return res.status(400).json({ error: "Missing required fields" });
+        }
+
+        let roster = [];
+        if (fs.existsSync(ROSTER_FILE)) {
+            try {
+                const raw = fs.readFileSync(ROSTER_FILE, 'utf8');
+                roster = JSON.parse(raw);
+            } catch (pErr) { roster = []; }
+        }
+
+        const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+        const weekDays = {};
+
+        days.forEach(day => {
+            const isWeekend = day === 'Saturday' || day === 'Sunday';
+            if (isWeekend) {
+                // Weekend: Backup PIC handles the long shift (interpreted by renderer for row coverage)
+                weekDays[day] = [
+                    { time: "10:00-01:00", [backup]: "Active (13h)" }
+                ];
+            } else {
+                // Mon-Fri
+                weekDays[day] = [
+                    { time: "10:00-19:00", [early]: "✓" },
+                    { time: "16:00-01:00", [night]: "✓" },
+                    { time: "On-call", [backup]: "Backup" }
+                ];
+                
+                // Include standard Wednesday Sync
+                if (day === 'Wednesday') {
+                    weekDays[day].push({ 
+                        time: "14:00-16:00", 
+                        Ivan: "IN-OFFICE", 
+                        DJ: "IN-OFFICE", 
+                        Shawn: "IN-OFFICE", 
+                        note: "Weekly Sync Meeting" 
+                    });
+                }
+            }
+        });
+
+        const newWeek = { title, dateRange, days: weekDays };
+
+        // Overwrite if same date range exists, otherwise add
+        const idx = roster.findIndex(w => w.dateRange === dateRange);
+        if (idx !== -1) {
+            roster[idx] = newWeek;
+        } else {
+            roster.push(newWeek);
+        }
+
+        // Save back to file
+        fs.writeFileSync(ROSTER_FILE, JSON.stringify(roster, null, 2));
+        res.json({ success: true, message: "Weekly roster generated successfully" });
+
+    } catch (e) {
+        console.error("Roster Generation Error:", e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
 // Fallback to index.html for unknown routes (SPA style)
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));

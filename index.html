@@ -512,10 +512,41 @@
                             <div class="admin-list" id="holidays-list">
                                 <!-- Holiday items -->
                             </div>
+                    </div>
+                    
+                    <!-- Weekly Roster Generator -->
+                    <div class="admin-card glass">
+                        <h3>Generate Weekly Roster</h3>
+                        <p class="admin-card-desc">Quickly set up a new weekly schedule by selecting the week and PICs.</p>
+                        <div class="admin-form">
+                            <select id="gen-week-range" class="glass-input"></select>
+                            <select id="gen-pic-early" class="glass-input">
+                                <option value="" disabled selected>Select Early PIC (10:00-19:00)</option>
+                                <option value="Ivan">Ivan</option>
+                                <option value="Shawn">Shawn</option>
+                                <option value="DJ">DJ</option>
+                            </select>
+                            <select id="gen-pic-night" class="glass-input">
+                                <option value="" disabled selected>Select Night PIC (16:00-01:00)</option>
+                                <option value="Ivan">Ivan</option>
+                                <option value="Shawn">Shawn</option>
+                                <option value="DJ">DJ</option>
+                            </select>
+                            <select id="gen-pic-backup" class="glass-input">
+                                <option value="" disabled selected>Select Backup PIC (On-call)</option>
+                                <option value="Ivan">Ivan</option>
+                                <option value="Shawn">Shawn</option>
+                                <option value="DJ">DJ</option>
+                            </select>
+                            <button onclick="generateWeeklyRoster()" class="action-btn">Create Weekly Roster</button>
+                        </div>
+                        <div id="gen-status" style="font-size: 0.75rem; color: var(--green); margin-top: 0.5rem; display: none;">
+                            Week generated successfully!
                         </div>
                     </div>
                 </div>
             </div>
+        </div>
         </main>
     </div>
 

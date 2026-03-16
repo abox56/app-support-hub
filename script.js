@@ -433,8 +433,8 @@ function renderWeek(index) {
         
         // Find time label for this row
         let timeLabel = (repShift && labelTitle !== 'Remark') ? repShift.time : '';
-        if (r === 1 && !timeLabel && week.title.includes("Week 1")) {
-            timeLabel = "19:00-01:00"; // Specific for Night shift display consistency
+        if (r === 1 && !timeLabel) {
+            timeLabel = "16:00-01:00"; // Default Night display if not explicitly in JSON
         }
         
         labelDiv.innerHTML = `${labelTitle}<br/><span>${timeLabel}</span>`;
@@ -443,9 +443,10 @@ function renderWeek(index) {
         dayKeys.forEach(day => {
             let shift = (week.days[day] && week.days[day][r]) ? week.days[day][r] : null;
             
-            // SHAWN WEEKEND OVERRIDE: Show him in Night row too
-            if (labelTitle === 'Night' && (day === 'Saturday' || day === 'Sunday') && week.title.includes('Week 1')) {
-                shift = { Shawn: 'Active (Night Part)' };
+            // WEEKEND OVERRIDE: Mirror the primary weekend shift (Row 0) to the Night row for visual continuity
+            if (labelTitle === 'Night' && (day === 'Saturday' || day === 'Sunday')) {
+                const weekendShift = (week.days[day] && week.days[day][0]) ? week.days[day][0] : null;
+                if (weekendShift) shift = weekendShift;
             }
 
             const shiftDiv = document.createElement('div');
@@ -1256,9 +1257,71 @@ async function loadAdminData() {
                 </div>
             `).join('') || '<p style="text-align:center; opacity: 0.5; padding: 1rem;">No holidays defined.</p>';
         }
+
+        // Init Roster Generator
+        initRosterGen();
     } catch (e) {
         console.error("Failed to load admin data:", e);
     }
+}
+
+function initRosterGen() {
+    const select = document.getElementById('gen-week-range');
+    if (!select || select.children.length > 0) return;
+
+    const options = [];
+    let d = new Date();
+    // Advance to next Monday
+    d.setDate(d.getDate() + (1 - d.getDay() + 7) % 7);
+    d.setHours(0, 0, 0, 0);
+
+    for (let i = 0; i < 8; i++) {
+        const start = new Date(d);
+        const end = new Date(d);
+        end.setDate(d.getDate() + 6);
+
+        const startStr = start.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+        const endStr = end.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+        
+        const jsonRange = `${start.getDate().toString().padStart(2, '0')}${start.toLocaleString('en-US', {month: 'short'})}-${end.getDate().toString().padStart(2, '0')}${end.toLocaleString('en-US', {month: 'short'})}`;
+        const title = `Week ${i + 1} (${startStr} - ${endStr})`;
+        
+        options.push(`<option value="${jsonRange}|${title}">${title}</option>`);
+        d.setDate(d.getDate() + 7);
+    }
+    select.innerHTML = options.join('');
+}
+
+async function generateWeeklyRoster() {
+    const rangeVal = document.getElementById('gen-week-range').value;
+    if (!rangeVal) return;
+    const parts = rangeVal.split('|');
+    const dateRange = parts[0];
+    const title = parts[1];
+    
+    const early = document.getElementById('gen-pic-early').value;
+    const night = document.getElementById('gen-pic-night').value;
+    const backup = document.getElementById('gen-pic-backup').value;
+
+    if (!early || !night || !backup) return alert("Please select all PICs");
+
+    const statusDiv = document.getElementById('gen-status');
+
+    try {
+        const res = await apiFetch('/api/roster/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ dateRange, title, early, night, backup })
+        });
+        const data = await res.json();
+        if (data.success) {
+            statusDiv.style.display = 'block';
+            statusDiv.textContent = "✅ Roster generated! Page will reload...";
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            alert("Error: " + data.error);
+        }
+    } catch (e) { alert("Failed: " + e.message); }
 }
 
 async function addToBlacklist() {
