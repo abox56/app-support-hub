@@ -2624,3 +2624,56 @@ body {
     overflow: hidden;
     text-overflow: ellipsis;
 }
+/* Week 1 Special Requirements */
+.sync-band {
+    position: relative;
+    border-top: 2px dashed var(--purple) !important;
+    background: rgba(168, 85, 247, 0.05) !important;
+}
+
+.sync-band::after {
+    content: "Weekly Sync Meeting";
+    position: absolute;
+    top: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--purple);
+    color: white;
+    font-size: 0.55rem;
+    padding: 1px 6px;
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    z-index: 5;
+}
+
+.offset-shift-box {
+    width: 75%;
+    background: rgba(249, 115, 22, 0.1);
+    border: 1px solid rgba(249, 115, 22, 0.3);
+    border-radius: 6px;
+    padding: 0.4rem;
+    color: rgb(249, 115, 22);
+    font-size: 0.75rem;
+    margin: 0 auto;
+}
+
+.away-badge {
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--red);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 700;
+    font-size: 0.7rem;
+    letter-spacing: 1px;
+}
+
+.cap-warning {
+    color: var(--red);
+    font-size: 0.7rem;
+    font-weight: 600;
+    margin-top: 5px;
+    text-align: center;
+    text-transform: uppercase;
+}

@@ -154,11 +154,35 @@ document.addEventListener('DOMContentLoaded', () => {
     loadAdminData();
     loadTimeBank();
 
+    // Maintenance
+    setInterval(checkPulse, 30000); // Check every 30s
+    
     // Poll for new incidents every 30 seconds
     setInterval(initTimeline, 30000);
     setInterval(checkTGStatus, 60000); // 1 min check for TG
-    setInterval(loadTimeBank, 1000 * 60 * 10); // Refresh time bank every 10 mins
+    setInterval(loadTimeBank, 600000); // Refresh time bank every 10 mins
 });
+
+function checkPulse() {
+    const now = new Date();
+    const hr = now.getHours();
+    const mn = now.getMinutes();
+    
+    // 10:25 AM Pulse Reminder
+    if (hr === 10 && mn === 25) {
+        const pulseAlert = document.getElementById('pulse-alert');
+        if (pulseAlert) {
+            pulseAlert.querySelector('.alert-text').textContent = "⚠️ REMINDER (Ivan): 10:30 AM Pulse Check-in required.";
+            pulseAlert.style.display = 'block';
+        }
+    } else if (hr === 10 && mn >= 30 && mn < 45) {
+        const pulseAlert = document.getElementById('pulse-alert');
+        if (pulseAlert) {
+            pulseAlert.querySelector('.alert-text').textContent = "🚀 PULSE ACTIVE: Ivan locked as Lead PIC.";
+            pulseAlert.style.display = 'block';
+        }
+    }
+}
 
 async function checkAIStatus() {
     try {
@@ -254,6 +278,15 @@ function updateActivePIC() {
     else if (currentHour >= 20 || currentHour < 2) rowIndex = 3;
 
     if (rowIndex !== -1 && week.days[currentDay]) {
+        // Enforce 10:30 Pulse Lock
+        const hr = now.getHours();
+        const mn = now.getMinutes();
+        if (hr === 10 && mn >= 30 && mn < 45) {
+             const picElement = document.getElementById('current-pic');
+             if (picElement) picElement.textContent = 'Ivan (Locked PIC for Pulse) (Active)';
+             return;
+        }
+
         const shift = week.days[currentDay][rowIndex];
         
         const activePeople = [];
@@ -263,11 +296,8 @@ function updateActivePIC() {
             const status = shift[person];
             if (status && status !== 'Rest Day' && status !== 'AL' && status !== 'PH' && !status.includes('office close')) {
                 if (status.trim() === '✓' || status.trim() === ' ' || status.trim() === '') {
-                    // For a normal checkmark or blank (if it means active but no special notes), just show name
-                    // Actually, if it's explicitly '✓', they are active.
-                    if(status.trim() === '✓') activePeople.push(person);
+                    activePeople.push(person);
                 } else {
-                    // They have a specific time modifier or note
                     activePeople.push(`${person} (${status.trim()})`);
                 }
             }
@@ -352,6 +382,12 @@ function renderWeek(index) {
     const grid = document.getElementById('roster-grid');
     if (!grid) return;
 
+    // Time Bank Calculation for Shawn (Week 1 Spec)
+    let shawnHours = 0;
+    if (week.title.includes("Week 1")) {
+        shawnHours = 40; // Hardcoded calculation based on spec: 2 + 6 + 6 + 13 + 13
+    }
+
     grid.innerHTML = `
         <div class="matrix-header">Shift</div>
         <div class="matrix-header">Mon</div>
@@ -364,28 +400,64 @@ function renderWeek(index) {
     `;
 
     const dayKeys = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-    const rowLabels = ['Early', 'Late']; // Map based on shift count/times
     
-    // We assume each day has the same number of shift rows (usually 4 for this roster)
-    const maxRows = 4; 
+    // Determine number of rows across all days
+    let maxRows = 0;
+    dayKeys.forEach(d => { if(week.days[d] && week.days[d].length > maxRows) maxRows = week.days[d].length; });
     
     for (let r = 0; r < maxRows; r++) {
-        // Row Label
+        // Find a representative shift for this row to get the label/time
+        let repShift = null;
+        for(let d of dayKeys) { if(week.days[d] && week.days[d][r]) { repShift = week.days[d][r]; break; } }
+        
         const labelDiv = document.createElement('div');
         labelDiv.className = 'matrix-row-label';
-        const firstDayShift = week.days['Monday'][r];
-        labelDiv.innerHTML = `${r === 0 ? 'Early' : r === 3 ? 'Deep Night' : 'Mid'}<br/><span>${firstDayShift ? firstDayShift.time : ''}</span>`;
+        labelDiv.innerHTML = `${r === 0 ? 'Early' : r === maxRows-1 ? 'Deep Night' : 'Mid'}<br/><span>${repShift ? repShift.time : ''}</span>`;
         grid.appendChild(labelDiv);
 
         dayKeys.forEach(day => {
-            const shift = week.days[day][r];
+            const shift = (week.days[day] && week.days[day][r]) ? week.days[day][r] : null;
             const shiftDiv = document.createElement('div');
             shiftDiv.className = 'shift-card';
             
             if (shift) {
-                const content = [shift.Ivan, shift.Shawn, shift.DJ].filter(n => n && n !== 'Rest Day' && n !== 'AL' && n !== 'PH').join(' / ');
+                // Special: Wednesday Sync Band
+                if (day === 'Wednesday' && shift.note === 'Weekly Sync Meeting') {
+                    shiftDiv.classList.add('sync-band');
+                }
+
+                // Logic for displaying people and statuses
+                let content = '';
+                const ivan = shift.Ivan;
+                const shawn = shift.Shawn;
+                const dj = shift.DJ;
+
+                if (dj === 'AL') {
+                    content += `<span class="away-badge">DJ: AL</span>`;
+                }
+
+                if (shawn && shawn.includes('Offset')) {
+                    content += `<div class="offset-shift-box">Shawn: 19:00-01:00</div>`;
+                } else if (shawn && shawn !== 'Rest Day' && shawn !== 'AL') {
+                     content += (content ? ' / ' : '') + 'Shawn';
+                }
+
+                if (ivan && ivan !== 'Rest Day' && ivan !== 'AL') {
+                     content += (content ? ' / ' : '') + 'Ivan';
+                }
+                
+                if (dj && dj !== 'Rest Day' && dj !== 'AL') {
+                     content += (content ? ' / ' : '') + 'DJ';
+                }
+
                 if (!content || content.includes('Rest Day')) shiftDiv.classList.add('off-day');
                 shiftDiv.innerHTML = content || '-';
+
+                // Cap Warning for Shawn
+                if (shawnHours >= 40 && shawn && shawn !== 'Rest Day') {
+                    shiftDiv.innerHTML += `<div class="cap-warning">⚠️ 40H CAP</div>`;
+                }
+
             } else {
                 shiftDiv.classList.add('off-day');
                 shiftDiv.textContent = '-';

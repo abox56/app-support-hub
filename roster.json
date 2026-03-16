@@ -1,1 +1,40 @@
-[]
+[
+  {
+    "title": "Week 1 (Mar 30 - Apr 5)",
+    "dateRange": "30Mar-05Apr",
+    "days": {
+      "Monday": [
+        { "time": "10:00-19:00", "Ivan": "✓" },
+        { "time": "16:00-01:00", "DJ": "✓" },
+        { "time": "On-call", "Shawn": "Backup" }
+      ],
+      "Tuesday": [
+        { "time": "10:00-19:00", "Ivan": "✓" },
+        { "time": "16:00-01:00", "DJ": "✓" },
+        { "time": "On-call", "Shawn": "Backup" }
+      ],
+      "Wednesday": [
+        { "time": "10:00-19:00", "Ivan": "✓" },
+        { "time": "16:00-01:00", "DJ": "✓" },
+        { "time": "On-call", "Shawn": "Backup" },
+        { "time": "14:00-16:00", "Ivan": "IN-OFFICE", "DJ": "IN-OFFICE", "Shawn": "IN-OFFICE", "note": "Weekly Sync Meeting" }
+      ],
+      "Thursday": [
+        { "time": "10:00-19:00", "Ivan": "✓" },
+        { "time": "19:00-01:00", "Shawn": "Offset Shift (6h)" },
+        { "time": "OFF", "DJ": "AL" }
+      ],
+      "Friday": [
+        { "time": "10:00-19:00", "Ivan": "✓" },
+        { "time": "19:00-01:00", "Shawn": "Offset Shift (6h)" },
+        { "time": "OFF", "DJ": "AL" }
+      ],
+      "Saturday": [
+        { "time": "10:00-01:00", "Shawn": "Active (13h)" }
+      ],
+      "Sunday": [
+        { "time": "10:00-01:00", "Shawn": "Active (13h)" }
+      ]
+    }
+  }
+]
