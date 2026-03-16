@@ -509,22 +509,22 @@
                     <div class="section-header">
                         <div>
                             <h2 class="section-title">Admin Configuration</h2>
-                            <p class="section-subtitle">Manage Telegram whitelists and Support Team identification.</p>
+                            <p class="section-subtitle">Manage Telegram blacklists and Support Team identification.</p>
                         </div>
                     </div>
 
                     <div class="admin-grid">
-                        <!-- Telegram Whitelist -->
+                        <!-- Telegram Blacklist -->
                         <div class="admin-card glass">
-                            <h3>Telegram Whitelist</h3>
-                            <p class="admin-card-desc">If entries exist, only messages from these Chat IDs will be processed.</p>
+                            <h3>Telegram Blacklist</h3>
+                            <p class="admin-card-desc">Add Chat IDs here to IGNORE messages from those groups. (Detecting all by default).</p>
                             <div class="admin-form">
-                                <input type="text" id="whitelist-chat-id" class="glass-input" placeholder="Chat ID (e.g. -100...)">
-                                <input type="text" id="whitelist-title" class="glass-input" placeholder="Title/Group Name">
-                                <button onclick="addToWhitelist()" class="action-btn">Add Chat</button>
+                                <input type="text" id="blacklist-chat-id" class="glass-input" placeholder="Chat ID (e.g. -100...)">
+                                <input type="text" id="blacklist-title" class="glass-input" placeholder="Title/Group Name">
+                                <button onclick="addToBlacklist()" class="action-btn">Ignore Chat</button>
                             </div>
-                            <div class="admin-list" id="whitelist-list">
-                                <!-- Whitelist items -->
+                            <div class="admin-list" id="blacklist-list">
+                                <!-- Blacklist items -->
                             </div>
                         </div>
 

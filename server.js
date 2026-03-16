@@ -129,7 +129,7 @@ let db;
                     INDEX(week_id),
                     INDEX(day_name)
                 );
-                CREATE TABLE IF NOT EXISTS whitelisted_chats (
+                CREATE TABLE IF NOT EXISTS blacklisted_chats (
                     chat_id VARCHAR(255) PRIMARY KEY,
                     title VARCHAR(255)
                 );
@@ -210,7 +210,7 @@ let db;
                 shift_status TEXT,
                 FOREIGN KEY(week_id) REFERENCES roster_weeks(id)
             );
-            CREATE TABLE IF NOT EXISTS whitelisted_chats (
+            CREATE TABLE IF NOT EXISTS blacklisted_chats (
                 chat_id TEXT PRIMARY KEY,
                 title TEXT
             );
@@ -598,12 +598,12 @@ async function initTelegram() {
             const groupTitle = chat.title || (chat.firstName ? chat.firstName : "Private Chat");
             const senderName = (sender.firstName || sender.username || "Unknown");
 
-            // 1. Whitelist Check
-            const whitelist = await db.all(`SELECT chat_id FROM whitelisted_chats`);
-            if (whitelist.length > 0) {
-                const isWhitelisted = whitelist.some(w => String(w.chat_id) === chatId);
-                if (!isWhitelisted) {
-                    // Optional: Log once per chat to avoid spamming console
+            // 1. Blacklist Check
+            const blacklist = await db.all(`SELECT chat_id FROM blacklisted_chats`);
+            if (blacklist.length > 0) {
+                const isBlacklisted = blacklist.some(w => String(w.chat_id) === chatId);
+                if (isBlacklisted) {
+                    // Ignore messages from blacklisted chats
                     return; 
                 }
             }
@@ -657,11 +657,15 @@ async function initTelegram() {
                         await tgClient.sendMessage(adminId, { message: summaryReport, parseMode: 'markdown' });
                         console.log("✅ Daily Summary sent to Admin.");
                     } else {
-                        // If no Admin ID, send to first whitelisted chat as a broadcast
-                        const whitelist = await db.all(`SELECT chat_id FROM whitelisted_chats LIMIT 1`);
-                        if (whitelist.length > 0) {
-                            await tgClient.sendMessage(whitelist[0].chat_id, { message: summaryReport, parseMode: 'markdown' });
-                            console.log("✅ Daily Summary broadcast to first whitelisted chat.");
+                        // If no Admin ID, send to first non-blacklisted chat as a broadcast
+                        const blacklist = await db.all(`SELECT chat_id FROM blacklisted_chats`);
+                        const blacklistedIds = blacklist.map(b => String(b.chat_id));
+                        
+                        // We need to fetch chats the client actually sees or just try the first known recorded chat
+                        const recentChat = await db.get(`SELECT chat_id FROM message_analysis_logs WHERE chat_id NOT IN (SELECT chat_id FROM blacklisted_chats) LIMIT 1`);
+                        if (recentChat) {
+                            await tgClient.sendMessage(recentChat.chat_id, { message: summaryReport, parseMode: 'markdown' });
+                            console.log("✅ Daily Summary broadcast to first available non-blacklisted chat.");
                         }
                     }
                 }
@@ -783,31 +787,31 @@ app.post('/api/incidents/bulk-categorize', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Config: Manage Whitelist
-app.get('/api/config/whitelist', async (req, res) => {
+// Config: Manage Blacklist
+app.get('/api/config/blacklist', async (req, res) => {
     try {
-        const rows = await db.all(`SELECT * FROM whitelisted_chats`);
+        const rows = await db.all(`SELECT * FROM blacklisted_chats`);
         res.json(rows);
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/config/whitelist', async (req, res) => {
+app.post('/api/config/blacklist', async (req, res) => {
     try {
         const { chat_id, title } = req.body;
         // Upsert style
-        const existing = await db.get(`SELECT * FROM whitelisted_chats WHERE chat_id = ?`, [chat_id]);
+        const existing = await db.get(`SELECT * FROM blacklisted_chats WHERE chat_id = ?`, [chat_id]);
         if (existing) {
-            await db.run(`UPDATE whitelisted_chats SET title = ? WHERE chat_id = ?`, [title, chat_id]);
+            await db.run(`UPDATE blacklisted_chats SET title = ? WHERE chat_id = ?`, [title, chat_id]);
         } else {
-            await db.run(`INSERT INTO whitelisted_chats (chat_id, title) VALUES (?, ?)`, [chat_id, title]);
+            await db.run(`INSERT INTO blacklisted_chats (chat_id, title) VALUES (?, ?)`, [chat_id, title]);
         }
         res.json({ success: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/api/config/whitelist/:id', async (req, res) => {
+app.delete('/api/config/blacklist/:id', async (req, res) => {
     try {
-        await db.run(`DELETE FROM whitelisted_chats WHERE chat_id = ?`, [req.params.id]);
+        await db.run(`DELETE FROM blacklisted_chats WHERE chat_id = ?`, [req.params.id]);
         res.json({ success: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -853,9 +857,14 @@ app.post('/api/ai-handover', async (req, res) => {
 
         // Auto-Post to TG if possible
         if (tgClient && tgClient.connected) {
-            // Find UFABET group or common support group
-            const whitelist = await db.all(`SELECT chat_id FROM whitelisted_chats`);
-            for (let chat of whitelist) {
+            // Find all non-blacklisted chats that we have recorded or known
+            const blacklist = await db.all(`SELECT chat_id FROM blacklisted_chats`);
+            const blacklistedIds = blacklist.map(b => String(b.chat_id));
+            
+            // Fetch all recently active chats from logs that aren't blacklisted
+            const activeChats = await db.all(`SELECT DISTINCT chat_id FROM message_analysis_logs WHERE chat_id NOT IN (SELECT chat_id FROM blacklisted_chats)`);
+            
+            for (let chat of activeChats) {
                 try {
                     await tgClient.sendMessage(chat.chat_id, { message: report, parseMode: 'markdown' });
                 } catch (e) { console.error("Post alert error:", e.message); }

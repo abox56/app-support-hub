@@ -1321,20 +1321,20 @@ function renderAutoShiftUI() {
 
 async function loadAdminData() {
     try {
-        // Load Whitelist
-        const wRes = await apiFetch('/api/config/whitelist');
-        const whitelist = await wRes.json();
-        const wList = document.getElementById('whitelist-list');
+        // Load Blacklist
+        const wRes = await apiFetch('/api/config/blacklist');
+        const blacklist = await wRes.json();
+        const wList = document.getElementById('blacklist-list');
         if (wList) {
-            wList.innerHTML = whitelist.map(item => `
+            wList.innerHTML = blacklist.map(item => `
                 <div class="admin-item">
                     <div class="item-info">
                         <span class="item-id">ID: ${item.chat_id}</span>
                         <span>${item.title}</span>
                     </div>
-                    <button class="remove-btn" onclick="removeFromWhitelist('${item.chat_id}')">REMOVE</button>
+                    <button class="remove-btn" onclick="removeFromBlacklist('${item.chat_id}')">REMOVE</button>
                 </div>
-            `).join('') || '<p style="text-align:center; opacity: 0.5; padding: 1rem;">No whitelisted chats (Detecting all).</p>';
+            `).join('') || '<p style="text-align:center; opacity: 0.5; padding: 1rem;">No blacklisted chats (Monitoring all).</p>';
         }
 
         // Load Support Team
@@ -1357,27 +1357,27 @@ async function loadAdminData() {
     }
 }
 
-async function addToWhitelist() {
-    const chatId = document.getElementById('whitelist-chat-id').value.trim();
-    const title = document.getElementById('whitelist-title').value.trim();
+async function addToBlacklist() {
+    const chatId = document.getElementById('blacklist-chat-id').value.trim();
+    const title = document.getElementById('blacklist-title').value.trim();
     if (!chatId || !title) return alert("Chat ID and Title are required");
 
     try {
-        await apiFetch('/api/config/whitelist', {
+        await apiFetch('/api/config/blacklist', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ chat_id: chatId, title: title })
         });
-        document.getElementById('whitelist-chat-id').value = '';
-        document.getElementById('whitelist-title').value = '';
+        document.getElementById('blacklist-chat-id').value = '';
+        document.getElementById('blacklist-title').value = '';
         loadAdminData();
     } catch (e) { alert("Failed to add chat: " + e.message); }
 }
 
-async function removeFromWhitelist(id) {
-    if (!confirm("Remove this chat from whitelist?")) return;
+async function removeFromBlacklist(id) {
+    if (!confirm("Remove this chat from blacklist?")) return;
     try {
-        await apiFetch(`/api/config/whitelist/${id}`, { method: 'DELETE' });
+        await apiFetch(`/api/config/blacklist/${id}`, { method: 'DELETE' });
         loadAdminData();
     } catch (e) { alert("Failed to remove: " + e.message); }
 }
