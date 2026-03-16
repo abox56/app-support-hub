@@ -285,7 +285,8 @@ function updateActivePIC() {
              return;
         }
 
-        const shift = week.days[currentDay][rowIndex];
+        const shift = week.days[currentDay] ? week.days[currentDay][rowIndex] : null;
+        if (!shift) return;
         
         const activePeople = [];
         const people = ['Ivan', 'Shawn', 'DJ'];
@@ -396,6 +397,16 @@ function renderWeek(index) {
         <div class="matrix-header">Sat</div>
         <div class="matrix-header">Sun</div>
     `;
+    const dayKeys = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    let maxRows = 0;
+    if (week.days) {
+        dayKeys.forEach(d => { if(week.days[d] && week.days[d].length > maxRows) maxRows = week.days[d].length; });
+    }
+
+    if (maxRows === 0) {
+        grid.innerHTML += `<div style="grid-column: span 8; padding: 2rem; text-align: center; opacity: 0.5;">No shifts found for ${week.title}</div>`;
+        return;
+    }
 
     for (let r = 0; r < maxRows; r++) {
         // Find a representative shift for this row to get the label/time
