@@ -56,29 +56,43 @@ function updateClock() {
     if (dateElement) dateElement.textContent = `${dayDate} ${monthName} ${year}`;
 }
 
-function updateHolidayCountdown() {
-    const now = new Date();
+async function updateHolidayCountdown() {
+    const timerElement = document.getElementById('holiday-timer');
+    if (!timerElement) return;
 
-    // Determine the next public holiday. For now, let's pick May 1st (Labor Day)
-    const currentYear = now.getFullYear();
-    let nextHoliday = new Date(currentYear, 4, 1); // Month is 0-indexed (4 = May)
+    try {
+        const response = await apiFetch('/api/config/holidays');
+        const holidays = await response.json();
+        
+        const now = new Date();
+        const futureHolidays = holidays
+            .map(h => ({ ...h, date: new Date(h.holiday_date) }))
+            .filter(h => h.date >= now)
+            .sort((a, b) => a.date - b.date);
 
-    // If today is past May 1st, look at next year
-    if (now > nextHoliday) {
-        // As a fallback for a generalized holiday, we can use December 25th (Christmas)
-        nextHoliday = new Date(currentYear, 11, 25);
-        if (now > nextHoliday) {
-            nextHoliday = new Date(currentYear + 1, 4, 1);
+        if (futureHolidays.length > 0) {
+            const next = futureHolidays[0];
+            const diff = next.date - now;
+            const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+            timerElement.textContent = `${days} Days`;
+            
+            // Optional: update label to show holiday name
+            const label = document.querySelector('.vibe-card:has(#holiday-timer) .vibe-label');
+            if (label) label.textContent = `Next Holiday: ${next.name}`;
+            return;
         }
-    }
+    } catch (e) { console.error("Holiday countdown error:", e); }
+
+    // Fallback if no holidays defined in DB
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    let nextHoliday = new Date(currentYear, 4, 1); // May 1st
+    if (now > nextHoliday) nextHoliday = new Date(currentYear, 11, 25);
+    if (now > nextHoliday) nextHoliday = new Date(currentYear + 1, 4, 1);
 
     const diff = nextHoliday - now;
     const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
-
-    const timerElement = document.getElementById('holiday-timer');
-    if (timerElement) {
-        timerElement.textContent = `${days} Days`;
-    }
+    timerElement.textContent = `${days} Days`;
 }
 
 
@@ -137,10 +151,13 @@ document.addEventListener('DOMContentLoaded', () => {
     loadSettings(); 
     checkAIStatus();
     checkTGStatus();
+    loadAdminData();
+    loadTimeBank();
 
     // Poll for new incidents every 30 seconds
     setInterval(initTimeline, 30000);
     setInterval(checkTGStatus, 60000); // 1 min check for TG
+    setInterval(loadTimeBank, 1000 * 60 * 10); // Refresh time bank every 10 mins
 });
 
 async function checkAIStatus() {
@@ -1191,7 +1208,7 @@ let interactiveLeaveData = {
     'DJ': {}
 };
 
-function addLeaveAndRegenerate() {
+async function addLeaveAndRegenerate() {
     const person = document.getElementById('leave-person').value;
     const dateStr = document.getElementById('leave-date').value;
     const type = document.getElementById('leave-type').value;
@@ -1202,14 +1219,14 @@ function addLeaveAndRegenerate() {
     }
 
     interactiveLeaveData[person][dateStr] = type;
-    renderAutoShiftUI();
+    await renderAutoShiftUI();
     renderLeavePills();
 }
 
-function removeLeave(person, dateStr) {
+async function removeLeave(person, dateStr) {
     if (interactiveLeaveData[person] && interactiveLeaveData[person][dateStr]) {
         delete interactiveLeaveData[person][dateStr];
-        renderAutoShiftUI();
+        await renderAutoShiftUI();
         renderLeavePills();
     }
 }
@@ -1231,9 +1248,15 @@ function renderLeavePills() {
     });
 }
 
-function renderAutoShiftUI() {
+async function renderAutoShiftUI() {
     const teamList = ['Ivan', 'Shawn', 'DJ'];
-    const holidayList = ['2026-04-04']; 
+    let holidayList = [];
+
+    try {
+        const response = await apiFetch('/api/config/holidays');
+        const holidays = await response.json();
+        holidayList = holidays.map(h => h.holiday_date);
+    } catch (e) { console.error("AutoShift holiday fetch error:", e); }
 
     const uiCalendarData = generateAutoShift(teamList, holidayList, interactiveLeaveData, 2026, 4);
     const grid = document.getElementById('autoshift-grid');
@@ -1352,6 +1375,22 @@ async function loadAdminData() {
                 </div>
             `).join('') || '<p style="text-align:center; opacity: 0.5; padding: 1rem;">No support members defined.</p>';
         }
+
+        // Load Public Holidays
+        const hRes = await apiFetch('/api/config/holidays');
+        const holidays = await hRes.json();
+        const hList = document.getElementById('holidays-list');
+        if (hList) {
+            hList.innerHTML = holidays.map(item => `
+                <div class="admin-item">
+                    <div class="item-info">
+                        <span class="item-id">${item.holiday_date}</span>
+                        <span>${item.name} ${item.is_office_closed ? '(Closed)' : ''}</span>
+                    </div>
+                    <button class="remove-btn" onclick="removeHoliday(${item.id})">REMOVE</button>
+                </div>
+            `).join('') || '<p style="text-align:center; opacity: 0.5; padding: 1rem;">No holidays defined.</p>';
+        }
     } catch (e) {
         console.error("Failed to load admin data:", e);
     }
@@ -1397,6 +1436,54 @@ async function addToSupportTeam() {
         document.getElementById('support-name').value = '';
         loadAdminData();
     } catch (e) { alert("Failed to add member: " + e.message); }
+}
+
+async function addHoliday() {
+    const date = document.getElementById('holiday-date').value;
+    const name = document.getElementById('holiday-name').value.trim();
+    const closed = document.getElementById('holiday-closed').checked;
+    if (!date || !name) return alert("Date and Name are required");
+
+    try {
+        await apiFetch('/api/config/holidays', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ holiday_date: date, name: name, is_office_closed: closed })
+        });
+        document.getElementById('holiday-date').value = '';
+        document.getElementById('holiday-name').value = '';
+        loadAdminData();
+    } catch (e) { alert("Failed to add holiday: " + e.message); }
+}
+
+async function removeHoliday(id) {
+    if (!confirm("Remove this holiday?")) return;
+    try {
+        await apiFetch(`/api/config/holidays/${id}`, { method: 'DELETE' });
+        loadAdminData();
+    } catch (e) { alert("Failed to remove: " + e.message); }
+}
+
+async function loadTimeBank() {
+    try {
+        const res = await apiFetch('/api/time-bank');
+        const data = await res.json();
+        const list = document.getElementById('time-bank-list');
+        if (list) {
+            if (data.length === 0) {
+                list.innerHTML = '<div class="timeline-empty">No balances recorded. Start adding shifts to see statistics.</div>';
+                return;
+            }
+            list.innerHTML = data.map(item => `
+                <div class="time-bank-item glass">
+                    <div style="font-weight: 600; font-size: 1rem;">${item.personnel_id}</div>
+                    <div style="font-size: 1.2rem; color: ${item.balance_hours >= 0 ? 'var(--neon-blue)' : 'var(--red)'};">
+                        ${item.balance_hours > 0 ? '+' : ''}${item.balance_hours} hrs
+                    </div>
+                </div>
+            `).join('');
+        }
+    } catch (e) { console.error("Time Bank error:", e); }
 }
 
 async function removeFromSupportTeam(id) {

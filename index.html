@@ -541,6 +541,23 @@
                                 <!-- Support team items -->
                             </div>
                         </div>
+
+                        <!-- Public Holidays -->
+                        <div class="admin-card glass">
+                            <h3>Public Holidays</h3>
+                            <p class="admin-card-desc">Manage upcoming holidays to automatically set shift statuses to PH.</p>
+                            <div class="admin-form">
+                                <input type="date" id="holiday-date" class="glass-input">
+                                <input type="text" id="holiday-name" class="glass-input" placeholder="Holiday Name">
+                                <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; opacity: 0.8;">
+                                    <input type="checkbox" id="holiday-closed" checked> Office Closed
+                                </label>
+                                <button onclick="addHoliday()" class="action-btn">Add Holiday</button>
+                            </div>
+                            <div class="admin-list" id="holidays-list">
+                                <!-- Holiday items -->
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

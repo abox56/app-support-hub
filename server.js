@@ -137,6 +137,18 @@ let db;
                     user_id VARCHAR(255) PRIMARY KEY,
                     name VARCHAR(255)
                 );
+                CREATE TABLE IF NOT EXISTS public_holidays (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    holiday_date VARCHAR(100) UNIQUE,
+                    name VARCHAR(255),
+                    is_office_closed BOOLEAN DEFAULT TRUE
+                );
+                CREATE TABLE IF NOT EXISTS time_bank (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    personnel_id VARCHAR(255),
+                    balance_hours FLOAT DEFAULT 0.0,
+                    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
                 -- Ensure column is there for existing setups
                 ALTER TABLE incident_updates ADD COLUMN is_support BOOLEAN DEFAULT FALSE;
             `);
@@ -217,6 +229,18 @@ let db;
             CREATE TABLE IF NOT EXISTS support_members (
                 user_id TEXT PRIMARY KEY,
                 name TEXT
+            );
+            CREATE TABLE IF NOT EXISTS public_holidays (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                holiday_date TEXT UNIQUE,
+                name TEXT,
+                is_office_closed BOOLEAN DEFAULT 1
+            );
+            CREATE TABLE IF NOT EXISTS time_bank (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                personnel_id TEXT,
+                balance_hours REAL DEFAULT 0.0,
+                last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
             -- SQLite doesn't support ADD COLUMN IF NOT EXISTS easily in exec, 
             -- but we can try and it will just fail if it's there
@@ -841,6 +865,43 @@ app.delete('/api/config/support-team/:id', async (req, res) => {
     try {
         await db.run(`DELETE FROM support_members WHERE user_id = ?`, [req.params.id]);
         res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Config: Manage Public Holidays
+app.get('/api/config/holidays', async (req, res) => {
+    try {
+        const rows = await db.all(`SELECT * FROM public_holidays ORDER BY holiday_date ASC`);
+        res.json(rows);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/config/holidays', async (req, res) => {
+    try {
+        const { holiday_date, name, is_office_closed } = req.body;
+        const closedValue = is_office_closed ? 1 : 0;
+        const existing = await db.get(`SELECT * FROM public_holidays WHERE holiday_date = ?`, [holiday_date]);
+        if (existing) {
+            await db.run(`UPDATE public_holidays SET name = ?, is_office_closed = ? WHERE holiday_date = ?`, [name, closedValue, holiday_date]);
+        } else {
+            await db.run(`INSERT INTO public_holidays (holiday_date, name, is_office_closed) VALUES (?, ?, ?)`, [holiday_date, name, closedValue]);
+        }
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/config/holidays/:id', async (req, res) => {
+    try {
+        await db.run(`DELETE FROM public_holidays WHERE id = ?`, [req.params.id]);
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// GET: Time Bank Status
+app.get('/api/time-bank', async (req, res) => {
+    try {
+        const rows = await db.all(`SELECT * FROM time_bank`);
+        res.json(rows);
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
