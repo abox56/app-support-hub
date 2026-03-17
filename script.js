@@ -509,7 +509,10 @@ function renderWeek(index) {
 
                     // Render custom notes (used by shift swap)
                     if (shift.note && labelTitle === 'Remark') {
-                        content += (content ? ' / ' : '') + `<span class="remark-text">${shift.note}</span>`;
+                        // Skip rendering 'Weekly Sync Meeting' as text because the CSS .sync-band adds it as a badge
+                        if (shift.note !== 'Weekly Sync Meeting') {
+                            content += (content ? ' / ' : '') + `<span class="remark-text">${shift.note}</span>`;
+                        }
                     }
                 }
 
