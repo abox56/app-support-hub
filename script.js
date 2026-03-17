@@ -1,5 +1,6 @@
 let HUB_PASSWORD = localStorage.getItem('hub_access_token') || '';
 let ALL_INCIDENTS = []; // Global cache for detailed view
+let PUBLIC_HOLIDAYS = []; // Cache for calendar highlighting
 
 async function apiFetch(url, options = {}) {
     if (!options.headers) options.headers = {};
@@ -541,17 +542,20 @@ function toggleRosterView(view) {
     currentView = view;
     const weekGrid = document.getElementById('roster-grid');
     const monthView = document.getElementById('month-view');
+    const sidebar = document.getElementById('month-stats-sidebar');
     const toggleWeek = document.getElementById('toggle-week');
     const toggleMonth = document.getElementById('toggle-month');
 
     if (view === 'week') {
         weekGrid.style.display = 'grid';
         monthView.style.display = 'none';
+        if (sidebar) sidebar.style.display = 'none';
         toggleWeek.classList.add('active');
         toggleMonth.classList.remove('active');
     } else {
         weekGrid.style.display = 'none';
         monthView.style.display = 'block';
+        if (sidebar) sidebar.style.display = 'flex';
         toggleWeek.classList.remove('active');
         toggleMonth.classList.add('active');
         renderMonthView();
@@ -560,33 +564,111 @@ function toggleRosterView(view) {
 
 function renderMonthView() {
     const container = document.getElementById('month-view');
+    const sidebar = document.getElementById('month-stats-sidebar');
     if (!container) return;
 
+    // 1. Calculate Stats
+    const stats = { Ivan: 0, Shawn: 0, DJ: 0 };
+    let totalShifts = 0;
+
+    allWeeks.forEach(week => {
+        Object.values(week.days).forEach(dayShifts => {
+            dayShifts.forEach(s => {
+                if (s.time && s.time !== 'On-call' && !s.time.includes('OFF')) {
+                    if (s.Ivan && s.Ivan !== 'Rest Day' && s.Ivan !== 'AL') { stats.Ivan++; totalShifts++; }
+                    if (s.Shawn && s.Shawn !== 'Rest Day' && s.Shawn !== 'AL') { stats.Shawn++; totalShifts++; }
+                    if (s.DJ && s.DJ !== 'Rest Day' && s.DJ !== 'AL') { stats.DJ++; totalShifts++; }
+                }
+            });
+        });
+    });
+
+    // 2. Render Calendar Grid
     let html = `
         <div class="month-grid-header">
-            <h3 class="month-title">Monthly Overview (Mar 2026)</h3>
+            <h3 class="month-title">Monthly Overview (2026)</h3>
         </div>
-        <div class="month-weeks-list">
+        <div class="month-calendar-grid">
+            <div class="month-day-header">Mon</div>
+            <div class="month-day-header">Tue</div>
+            <div class="month-day-header">Wed</div>
+            <div class="month-day-header">Thu</div>
+            <div class="month-day-header">Fri</div>
+            <div class="month-day-header">Sat</div>
+            <div class="month-day-header">Sun</div>
     `;
 
-    allWeeks.forEach((week, idx) => {
-        // Simple summary of each week
-        const mondayIvan = week.days['Monday'][0].Ivan; // Sample
-        html += `
-            <div class="month-week-row glass" onclick="renderWeek(${idx}); toggleRosterView('week')">
-                <div class="week-label">${week.title}</div>
-                <div class="week-summary">
-                    <span class="member-pill">Ivan</span>
-                    <span class="member-pill">Shawn</span>
-                    <span class="member-pill">DJ</span>
+    allWeeks.forEach((week, weekIdx) => {
+        const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+        days.forEach(dayName => {
+            const dayShifts = week.days[dayName] || [];
+            
+            // Extract personnel for this day
+            const dayShiftPeople = [];
+            const nightShiftPeople = [];
+            let isAL = false;
+            let note = '';
+            
+            dayShifts.forEach(s => {
+                const isNight = s.time && (s.time.includes('16:00') || s.time.includes('19:00'));
+                if (s.time !== 'On-call' && !s.time.includes('OFF')) {
+                    if (s.Ivan && s.Ivan !== 'Rest Day' && s.Ivan !== 'AL') { if(isNight) nightShiftPeople.push('Ivan'); else dayShiftPeople.push('Ivan'); }
+                    if (s.Shawn && s.Shawn !== 'Rest Day' && s.Shawn !== 'AL') { if(isNight) nightShiftPeople.push('Shawn'); else dayShiftPeople.push('Shawn'); }
+                    if (s.DJ && s.DJ !== 'Rest Day' && s.DJ !== 'AL') { if(isNight) nightShiftPeople.push('DJ'); else dayShiftPeople.push('DJ'); }
+                }
+                if (s.DJ === 'AL' || s.Ivan === 'AL' || s.Shawn === 'AL') isAL = true;
+                if (s.note && s.note !== 'Weekly Sync Meeting') note = s.note;
+            });
+
+            html += `
+                <div class="month-day-cell glass ${isAL ? 'has-al' : ''}" onclick="renderWeek(${weekIdx}); toggleRosterView('week')">
+                    <div class="month-date-num" style="display:flex; justify-content:space-between; align-items:center;">
+                        <span>${dayName.substring(0,3)}</span>
+                        ${note ? `<span title="${note}" style="color:var(--cyan); font-size:10px;">ℹ️</span>` : ''}
+                    </div>
+                    
+                    <div class="month-shift-pills">
+                        ${[...new Set(dayShiftPeople)].map(p => `<span class="mini-pill ${p.toLowerCase()}" title="Early">${p}</span>`).join('')}
+                    </div>
+                    
+                    ${nightShiftPeople.length > 0 ? `
+                    <div class="month-shift-pills" style="border-top: 1px solid rgba(255,255,255,0.05); padding-top:4px; margin-top:2px;">
+                        ${[...new Set(nightShiftPeople)].map(p => `<span class="mini-pill ${p.toLowerCase()}" title="Night" style="opacity:0.8; font-style:italic;">${p}</span>`).join('')}
+                    </div>` : ''}
+
+                    ${isAL ? `<div class="month-holiday-badge">AL/MC</div>` : ''}
                 </div>
-                <div class="view-hint">View Details →</div>
-            </div>
-        `;
+            `;
+
+        });
     });
 
     html += `</div>`;
     container.innerHTML = html;
+
+    // 3. Render Sidebar Stats
+    if (sidebar) {
+        const max = Math.max(stats.Ivan, stats.Shawn, stats.DJ, 1);
+        sidebar.innerHTML = `
+            <div class="stats-card glass">
+                <h4>Shift Distribution</h4>
+                ${Object.entries(stats).map(([name, count]) => `
+                    <div class="stat-item">
+                        <div class="stat-row">
+                            <span>${name}</span>
+                            <span>${count} Shifts</span>
+                        </div>
+                        <div class="stat-bar-bg">
+                            <div class="stat-bar-fill ${name.toLowerCase()}" style="width: ${(count/max)*100}%"></div>
+                        </div>
+                    </div>
+                `).join('')}
+                <div style="margin-top: 1.5rem; font-size: 0.75rem; opacity: 0.5; text-align: center;">
+                    Based on ${allWeeks.length} generated weeks
+                </div>
+            </div>
+        `;
+    }
 }
 
 // Remove the placeholder function we added earlier at the end of initRoster block
@@ -1271,6 +1353,7 @@ async function loadAdminData() {
         // Load Public Holidays
         const hRes = await apiFetch('/api/config/holidays');
         const holidays = await hRes.json();
+        PUBLIC_HOLIDAYS = holidays;
         const hList = document.getElementById('holidays-list');
         if (hList) {
             hList.innerHTML = holidays.map(item => `
