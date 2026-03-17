@@ -1230,6 +1230,31 @@ app.post('/api/roster/swap', async (req, res) => {
     }
 });
 
+// API: Delete Roster Week
+app.delete('/api/roster/week/:id', async (req, res) => {
+    try {
+        const weekId = req.params.id;
+        if (db) {
+            await db.run("DELETE FROM roster_shifts WHERE week_id = ?", [weekId]);
+            await db.run("DELETE FROM roster_weeks WHERE id = ?", [weekId]);
+            return res.json({ success: true });
+        }
+        
+        // File fallback
+        if (fs.existsSync(ROSTER_FILE)) {
+            let roster = JSON.parse(fs.readFileSync(ROSTER_FILE, 'utf8'));
+            // Note: For file fallback, 'id' might be index or we check title
+            // But since we migrated to DB, this is mainly for safety
+            roster = roster.filter((w, idx) => (w.id || idx).toString() !== weekId);
+            fs.writeFileSync(ROSTER_FILE, JSON.stringify(roster, null, 2));
+            return res.json({ success: true });
+        }
+        res.status(404).json({ error: "Not found" });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 
 // Fallback to index.html for unknown routes (SPA style)
 app.get('*', (req, res) => {

@@ -1281,12 +1281,40 @@ async function loadAdminData() {
             `).join('') || '<p style="text-align:center; opacity: 0.5; padding: 1rem;">No holidays defined.</p>';
         }
 
+        // Load Roster Weeks
+        const rRes = await apiFetch('/api/roster');
+        const weeks = await rRes.json();
+        const rList = document.getElementById('manage-weeks-list');
+        if (rList) {
+            rList.innerHTML = weeks.map((w, idx) => `
+                <div class="admin-item">
+                    <div class="item-info">
+                        <span class="item-id">${w.dateRange}</span>
+                        <span>${w.title}</span>
+                    </div>
+                    <button class="remove-btn" onclick="removeRosterWeek('${w.id || idx}')">REMOVE</button>
+                </div>
+            `).join('') || '<p style="text-align:center; opacity: 0.5; padding: 1rem;">No weeks generated.</p>';
+        }
+
         // Init Roster Generator
         initRosterGen();
     } catch (e) {
         console.error("Failed to load admin data:", e);
     }
 }
+
+async function removeRosterWeek(id) {
+    if (!confirm("Are you sure you want to delete this weekly roster? This action cannot be undone.")) return;
+    try {
+        await apiFetch(`/api/roster/week/${id}`, { method: 'DELETE' });
+        loadAdminData(); // Refresh list
+        initRoster(); // Refresh the main roster view
+    } catch (e) {
+        alert("Failed to delete week: " + e.message);
+    }
+}
+
 
 function initRosterGen() {
     const select = document.getElementById('gen-week-range');
