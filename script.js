@@ -664,6 +664,18 @@ function renderMonthView() {
     if (sidebar) {
         const max = Math.max(stats.Ivan, stats.Shawn, stats.DJ, 1);
         sidebar.innerHTML = `
+            <div class="stats-card glass" style="margin-bottom: 1rem;">
+                <h4>Legend</h4>
+                <div class="stat-row" style="margin-bottom: 0.5rem;">
+                    <span class="mini-pill" style="background: rgba(255,255,255,0.1); color: white;">Name</span>
+                    <span style="font-size: 0.75rem; opacity: 0.7;">Day Shift</span>
+                </div>
+                <div class="stat-row">
+                    <span class="mini-pill" style="background: rgba(255,255,255,0.05); color: white; border: 1px dashed rgba(255,255,255,0.2); font-style: italic; opacity: 0.8;">Name</span>
+                    <span style="font-size: 0.75rem; opacity: 0.7;">Night Shift</span>
+                </div>
+            </div>
+
             <div class="stats-card glass">
                 <h4>Shift Distribution</h4>
                 ${Object.entries(stats).map(([name, count]) => `
