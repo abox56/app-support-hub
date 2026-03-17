@@ -123,11 +123,14 @@ let db;
                     id INT AUTO_INCREMENT PRIMARY KEY,
                     week_id INT,
                     day_name VARCHAR(50),
+                    row_index INT,
                     time_slot VARCHAR(100),
-                    person_name VARCHAR(100),
-                    shift_status VARCHAR(255),
-                    INDEX(week_id),
-                    INDEX(day_name)
+                    Ivan VARCHAR(100),
+                    DJ VARCHAR(100),
+                    Shawn VARCHAR(100),
+                    note TEXT,
+                    swapped BOOLEAN DEFAULT FALSE,
+                    INDEX(week_id)
                 );
                 CREATE TABLE IF NOT EXISTS blacklisted_chats (
                     chat_id VARCHAR(255) PRIMARY KEY,
@@ -153,6 +156,31 @@ let db;
                 ALTER TABLE incident_updates ADD COLUMN is_support BOOLEAN DEFAULT FALSE;
             `);
             console.log("✅ MySQL Database schema fully initialized.");
+
+            // Migration: File to DB
+            const ROSTER_FILE = path.join(__dirname, 'roster.json');
+            const weekCheck = await db.all("SELECT id FROM roster_weeks LIMIT 1");
+            if (weekCheck.length === 0 && fs.existsSync(ROSTER_FILE)) {
+                console.log("🚚 Migrating roster.json to MySQL...");
+                try {
+                    const data = JSON.parse(fs.readFileSync(ROSTER_FILE, 'utf8'));
+                    for (const week of data) {
+                        const { lastID: weekId } = await db.run("INSERT INTO roster_weeks (title, date_range) VALUES (?, ?)", [week.title, week.dateRange]);
+                        for (const day of Object.keys(week.days)) {
+                            const dayShifts = week.days[day];
+                            for (let i = 0; i < dayShifts.length; i++) {
+                                const s = dayShifts[i];
+                                await db.run(`INSERT INTO roster_shifts 
+                                    (week_id, day_name, row_index, time_slot, Ivan, DJ, Shawn, note, swapped) 
+                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, 
+                                    [weekId, day, i, s.time || '', s.Ivan || null, s.DJ || null, s.Shawn || null, s.note || null, s.swapped ? 1 : 0]
+                                );
+                            }
+                        }
+                    }
+                    console.log("✅ Migration complete.");
+                } catch (migErr) { console.error("❌ Migration failed:", migErr.message); }
+            }
         } catch (e) {
             console.error("❌ MySQL Init Failed:", e.message);
             db = null; // Ensure fallback happens
@@ -989,53 +1017,70 @@ app.post('/api/ai-suggest-reply', async (req, res) => {
 const ROSTER_FILE = path.join(__dirname, 'roster.json');
 
 // API: Get Roster
-app.get('/api/roster', (req, res) => {
+app.get('/api/roster', async (req, res) => {
     try {
+        if (db) {
+            const weeks = await db.all("SELECT * FROM roster_weeks ORDER BY id ASC");
+            const result = [];
+            for (const week of weeks) {
+                const shifts = await db.all("SELECT * FROM roster_shifts WHERE week_id = ? ORDER BY day_name, row_index ASC", [week.id]);
+                const days = {
+                    'Monday': [], 'Tuesday': [], 'Wednesday': [], 'Thursday': [], 'Friday': [], 'Saturday': [], 'Sunday': []
+                };
+                shifts.forEach(s => {
+                    const shiftObj = { time: s.time_slot };
+                    if (s.Ivan) shiftObj.Ivan = s.Ivan;
+                    if (s.DJ) shiftObj.DJ = s.DJ;
+                    if (s.Shawn) shiftObj.Shawn = s.Shawn;
+                    if (s.note) shiftObj.note = s.note;
+                    if (s.swapped) shiftObj.swapped = true;
+                    days[s.day_name].push(shiftObj);
+                });
+                result.push({ 
+                    id: week.id,
+                    title: week.title, 
+                    dateRange: week.date_range, 
+                    days 
+                });
+            }
+            return res.json(result);
+        }
+
+        // Fallback to file
         if (!fs.existsSync(ROSTER_FILE)) return res.json([]);
         const rosterData = fs.readFileSync(ROSTER_FILE, 'utf8');
         res.json(JSON.parse(rosterData));
     } catch (e) {
+        console.error("Fetch roster error:", e);
         res.status(500).json({ error: "Failed to read roster" });
     }
 });
 
 // API: Generate Weekly Roster
-app.post('/api/roster/generate', (req, res) => {
+app.post('/api/roster/generate', async (req, res) => {
     try {
         const { dateRange, title, early, night, backup } = req.body;
         if (!dateRange || !title || !early || !night || !backup) {
             return res.status(400).json({ error: "Missing required fields" });
         }
 
-        let roster = [];
-        if (fs.existsSync(ROSTER_FILE)) {
-            try {
-                const raw = fs.readFileSync(ROSTER_FILE, 'utf8');
-                roster = JSON.parse(raw);
-            } catch (pErr) { roster = []; }
-        }
-
         const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-        const weekDays = {};
+        const weekDaysData = {};
 
         days.forEach(day => {
             const isWeekend = day === 'Saturday' || day === 'Sunday';
             if (isWeekend) {
-                // Weekend: Backup PIC handles the long shift (interpreted by renderer for row coverage)
-                weekDays[day] = [
+                weekDaysData[day] = [
                     { time: "10:00-01:00", [backup]: "Active (13h)" }
                 ];
             } else {
-                // Mon-Fri
-                weekDays[day] = [
+                weekDaysData[day] = [
                     { time: "10:00-19:00", [early]: "✓" },
                     { time: "16:00-01:00", [night]: "✓" },
                     { time: "On-call", [backup]: "Backup" }
                 ];
-                
-                // Add Remark slot (Row 4) for all days to handle swaps/notes
                 if (day === 'Wednesday') {
-                    weekDays[day].push({ 
+                    weekDaysData[day].push({ 
                         time: "", 
                         Ivan: "IN-OFFICE", 
                         DJ: "IN-OFFICE", 
@@ -1043,24 +1088,48 @@ app.post('/api/roster/generate', (req, res) => {
                         note: "Weekly Sync Meeting" 
                     });
                 } else {
-                    weekDays[day].push({ time: "", note: "" });
+                    weekDaysData[day].push({ time: "", note: "" });
                 }
             }
         });
 
-        const newWeek = { title, dateRange, days: weekDays };
+        if (db) {
+            // Check if week exists
+            const existing = await db.get("SELECT id FROM roster_weeks WHERE date_range = ?", [dateRange]);
+            let weekId;
+            if (existing) {
+                weekId = existing.id;
+                await db.run("DELETE FROM roster_shifts WHERE week_id = ?", [weekId]);
+                await db.run("UPDATE roster_weeks SET title = ? WHERE id = ?", [title, weekId]);
+            } else {
+                const { lastID } = await db.run("INSERT INTO roster_weeks (title, date_range) VALUES (?, ?)", [title, dateRange]);
+                weekId = lastID;
+            }
 
-        // Overwrite if same date range exists, otherwise add
-        const idx = roster.findIndex(w => w.dateRange === dateRange);
-        if (idx !== -1) {
-            roster[idx] = newWeek;
-        } else {
-            roster.push(newWeek);
+            for (const day of Object.keys(weekDaysData)) {
+                const shifts = weekDaysData[day];
+                for (let i = 0; i < shifts.length; i++) {
+                    const s = shifts[i];
+                    await db.run(`INSERT INTO roster_shifts 
+                        (week_id, day_name, row_index, time_slot, Ivan, DJ, Shawn, note, swapped) 
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, 
+                        [weekId, day, i, s.time || '', s.Ivan || null, s.DJ || null, s.Shawn || null, s.note || null, 0]
+                    );
+                }
+            }
+            return res.json({ success: true, message: "Weekly roster generated in Database" });
         }
 
-        // Save back to file
+        // Fallback to file logic
+        let roster = [];
+        if (fs.existsSync(ROSTER_FILE)) {
+            try { const raw = fs.readFileSync(ROSTER_FILE, 'utf8'); roster = JSON.parse(raw); } catch (pErr) { roster = []; }
+        }
+        const newWeek = { title, dateRange, days: weekDaysData };
+        const idx = roster.findIndex(w => w.dateRange === dateRange);
+        if (idx !== -1) roster[idx] = newWeek; else roster.push(newWeek);
         fs.writeFileSync(ROSTER_FILE, JSON.stringify(roster, null, 2));
-        res.json({ success: true, message: "Weekly roster generated successfully" });
+        res.json({ success: true, message: "Weekly roster generated in file" });
 
     } catch (e) {
         console.error("Roster Generation Error:", e);
@@ -1068,47 +1137,62 @@ app.post('/api/roster/generate', (req, res) => {
     }
 });
 
-app.post('/api/roster/swap', (req, res) => {
+app.post('/api/roster/swap', async (req, res) => {
     try {
         const { day, rowIndex, currentPIC, weekTitle, reason, replacementPIC } = req.body;
-        if (!fs.existsSync(ROSTER_FILE)) return res.status(404).json({ error: "Roster not found" });
 
+        if (db) {
+            const week = await db.get("SELECT id FROM roster_weeks WHERE title = ?", [weekTitle]);
+            if (!week) return res.status(404).json({ error: "Week not found" });
+
+            const shifts = await db.all("SELECT * FROM roster_shifts WHERE week_id = ? AND day_name = ? ORDER BY row_index ASC", [week.id, day]);
+            const target = shifts[rowIndex];
+            if (!target) return res.status(404).json({ error: "Shift not found" });
+
+            // Swap personnel
+            const status = target[currentPIC] || '✓';
+            await db.run(`UPDATE roster_shifts SET ${currentPIC} = NULL, ${replacementPIC} = ?, swapped = 1 WHERE id = ?`, [status, target.id]);
+
+            // Handle Remark row (usually row 4 / index 3)
+            if (reason === 'AL' || reason === 'MC') {
+                const remarkText = `${currentPIC}: ${reason}`;
+                let remarkRow = shifts[3]; // Row 4
+                if (!remarkRow) {
+                    const { lastID } = await db.run("INSERT INTO roster_shifts (week_id, day_name, row_index, time_slot, note) VALUES (?, ?, 3, '', ?)", [week.id, day, remarkText]);
+                } else {
+                    const existingNote = remarkRow.note || '';
+                    const newNote = existingNote ? `${existingNote} / ${remarkText}` : remarkText;
+                    if (!existingNote.includes(remarkText)) {
+                        await db.run("UPDATE roster_shifts SET note = ? WHERE id = ?", [newNote, remarkRow.id]);
+                    }
+                }
+            }
+            return res.json({ success: true });
+        }
+
+        // Fallback to file
+        if (!fs.existsSync(ROSTER_FILE)) return res.status(404).json({ error: "Roster not found" });
         const roster = JSON.parse(fs.readFileSync(ROSTER_FILE, 'utf8'));
         const week = roster.find(w => w.title === weekTitle);
-        if (!week || !week.days[day]) return res.status(404).json({ error: "Week or Day not found" });
-
-        const shifts = week.days[day];
-        const targetShift = shifts[rowIndex];
+        if (!week || !week.days[day]) return res.status(404).json({ error: "Day not found" });
+        const dayShifts = week.days[day];
+        const targetShift = dayShifts[rowIndex];
         if (!targetShift) return res.status(404).json({ error: "Shift not found" });
 
-        // Update the shift PIC
         const oldStatus = targetShift[currentPIC] || '✓';
         delete targetShift[currentPIC];
         targetShift[replacementPIC] = oldStatus;
         targetShift.swapped = true; 
 
-        // Handle Remark
         if (reason === 'AL' || reason === 'MC') {
             const remarkText = `${currentPIC}: ${reason}`;
-            
-            // Ensure we have at least 4 rows for the day (index 3 is the Remark row)
-            while (shifts.length < 4) {
-                shifts.push({ time: "" }); // Add empty rows until we reach the Remark slot
-            }
-
-            const remarkShift = shifts[3]; // Always use the 4th row for Remarks/Sync
+            while (dayShifts.length < 4) dayShifts.push({ time: "" });
+            const remarkShift = dayShifts[3];
             if (remarkShift) {
                 const currentNote = remarkShift.note || '';
-                if (currentNote) {
-                    if (!currentNote.includes(remarkText)) {
-                        remarkShift.note = `${currentNote} / ${remarkText}`;
-                    }
-                } else {
-                    remarkShift.note = remarkText;
-                }
+                remarkShift.note = currentNote ? (currentNote.includes(remarkText) ? currentNote : `${currentNote} / ${remarkText}`) : remarkText;
             }
         }
-
         fs.writeFileSync(ROSTER_FILE, JSON.stringify(roster, null, 2));
         res.json({ success: true });
 
