@@ -1066,6 +1066,58 @@ app.post('/api/roster/generate', (req, res) => {
     }
 });
 
+app.post('/api/roster/swap', (req, res) => {
+    try {
+        const { day, rowIndex, currentPIC, weekTitle, reason, replacementPIC } = req.body;
+        if (!fs.existsSync(ROSTER_FILE)) return res.status(404).json({ error: "Roster not found" });
+
+        const roster = JSON.parse(fs.readFileSync(ROSTER_FILE, 'utf8'));
+        const week = roster.find(w => w.title === weekTitle);
+        if (!week || !week.days[day]) return res.status(404).json({ error: "Week or Day not found" });
+
+        const shifts = week.days[day];
+        const targetShift = shifts[rowIndex];
+        if (!targetShift) return res.status(404).json({ error: "Shift not found" });
+
+        // Update the shift PIC
+        const oldStatus = targetShift[currentPIC] || '✓';
+        delete targetShift[currentPIC];
+        targetShift[replacementPIC] = oldStatus;
+        targetShift.swapped = true; 
+
+        // Handle Remark
+        if (reason === 'AL' || reason === 'MC') {
+            const remarkText = `${currentPIC}: ${reason}`;
+            let remarkShift = shifts.find(s => s && s.time === ''); 
+            
+            if (!remarkShift) {
+                if (shifts.length > 3) {
+                    remarkShift = shifts[3];
+                }
+            }
+
+            if (remarkShift) {
+                const currentNote = remarkShift.note || '';
+                if (currentNote) {
+                    if (!currentNote.includes(remarkText)) {
+                        remarkShift.note = `${currentNote} / ${remarkText}`;
+                    }
+                } else {
+                    remarkShift.note = remarkText;
+                }
+            }
+        }
+
+        fs.writeFileSync(ROSTER_FILE, JSON.stringify(roster, null, 2));
+        res.json({ success: true });
+
+    } catch (e) {
+        console.error("Swap Error:", e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+
 // Fallback to index.html for unknown routes (SPA style)
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));

@@ -411,6 +411,8 @@ function renderWeek(index) {
     if (week.days) {
         dayKeys.forEach(d => { if(week.days[d] && week.days[d].length > maxRows) maxRows = week.days[d].length; });
     }
+    // Ensure Remark row (row 4) is always accounted for
+    if (maxRows < 4) maxRows = 4;
 
     if (maxRows === 0) {
         grid.innerHTML += `<div style="grid-column: span 8; padding: 2rem; text-align: center; opacity: 0.5;">No shifts found for ${week.title}</div>`;
@@ -452,7 +454,18 @@ function renderWeek(index) {
             const shiftDiv = document.createElement('div');
             shiftDiv.className = 'shift-card';
             
-            if (shift || (labelTitle === 'Remark' && (day === 'Thursday' || day === 'Friday'))) {
+            // ADMIN INTERACTION: Allow clicking to swap if admin
+            if (labelTitle !== 'Remark' && shift && currentView === 'week') {
+                shiftDiv.classList.add('admin-clickable');
+                shiftDiv.onclick = () => openShiftSwap(day, r, shift, week.title);
+            }
+
+            // Visual indicator for swapped shifts
+            if (shift && shift.swapped) {
+                shiftDiv.classList.add('swapped-shift');
+            }
+
+            if (shift || labelTitle === 'Remark') {
                 let content = '';
                 
                 // DJ: AL REMARK OVERRIDE: Move to Remark row
@@ -488,6 +501,11 @@ function renderWeek(index) {
                     
                     if (dj && dj !== 'Rest Day' && dj !== 'AL') {
                          content += (content ? ' / ' : '') + 'DJ';
+                    }
+
+                    // Render custom notes (used by shift swap)
+                    if (shift.note && labelTitle === 'Remark') {
+                        content += (content ? ' / ' : '') + `<span class="remark-text">${shift.note}</span>`;
                     }
                 }
 
@@ -1390,6 +1408,76 @@ async function removeHoliday(id) {
         await apiFetch(`/api/config/holidays/${id}`, { method: 'DELETE' });
         loadAdminData();
     } catch (e) { alert("Failed to remove: " + e.message); }
+}
+
+// --- Shift Swap Logic ---
+let activeSwapData = null;
+
+function openShiftSwap(day, rowIndex, shift, weekTitle) {
+    // Only Ivan, DJ, Shawn are swappable for now
+    const people = ['Ivan', 'DJ', 'Shawn'];
+    const currentPIC = people.find(p => shift[p] && shift[p] !== 'Rest Day' && shift[p] !== 'AL');
+    
+    if (!currentPIC) return;
+
+    activeSwapData = { day, rowIndex, currentPIC, weekTitle };
+    
+    // Find backup for this day to suggest
+    const week = allWeeks.find(w => w.title === weekTitle);
+    let backupPIC = '';
+    if (week && week.days[day]) {
+        const backupRow = week.days[day].find(s => s && s.time === 'On-call');
+        if (backupRow) {
+            backupPIC = Object.keys(backupRow).find(k => ['Ivan', 'DJ', 'Shawn'].includes(k) && backupRow[k] === 'Backup');
+        }
+    }
+
+    const picSelect = document.getElementById('swap-pic');
+    if (picSelect) {
+        picSelect.value = backupPIC || '';
+        document.getElementById('swap-hint').textContent = backupPIC ? `System suggests backup: ${backupPIC}` : 'Manual selection required.';
+    }
+
+    openModal('swap-modal');
+}
+
+async function confirmShiftSwap() {
+    if (!activeSwapData) return;
+    
+    const reason = document.getElementById('swap-reason').value;
+    const replacementPIC = document.getElementById('swap-pic').value;
+    
+    if (!replacementPIC) return alert("Please select a replacement PIC");
+
+    const btn = document.getElementById('confirm-swap-btn');
+    btn.disabled = true;
+    btn.textContent = 'Updating...';
+
+    try {
+        const res = await apiFetch('/api/roster/swap', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                ...activeSwapData,
+                reason,
+                replacementPIC
+            })
+        });
+        
+        const data = await res.json();
+        if (data.success) {
+            closeModal('swap-modal');
+            await initRoster(); // Reload data
+        } else {
+            alert("Error: " + data.error);
+        }
+    } catch (e) {
+        alert("Failed to swap shift: " + e.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Update Roster';
+        activeSwapData = null;
+    }
 }
 
 

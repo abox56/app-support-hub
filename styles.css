@@ -698,6 +698,31 @@ body {
     color: rgba(255, 255, 255, 0.8);
 }
 
+.shift-card.admin-clickable {
+    cursor: pointer;
+}
+
+.shift-card.admin-clickable:hover {
+    border-color: var(--cyan);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 255, 240, 0.1);
+}
+
+.shift-card.swapped-shift {
+    border: 1px solid rgba(255, 165, 0, 0.4) !important;
+    position: relative;
+}
+
+.shift-card.swapped-shift::after {
+    content: '🔄';
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    font-size: 0.7rem;
+    background: #111;
+    border-radius: 50%;
+}
+
 .shift-card:hover:not(.off-day) {
     background: rgba(255, 255, 255, 0.06);
     transform: translateY(-2px);

@@ -630,6 +630,40 @@
         </div>
     </div>
 
+    <!-- Shift Swap Modal -->
+    <div id="swap-modal" class="modal-overlay">
+        <div class="modal-content glass" style="max-width: 400px;">
+            <div class="modal-header">
+                <h3 class="modal-title">Shift Replacement</h3>
+                <button class="modal-close" onclick="closeModal('swap-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="settings-group">
+                    <label class="settings-label">Replacement Reason</label>
+                    <select id="swap-reason" class="settings-input">
+                        <option value="AL">Annual Leave (AL)</option>
+                        <option value="MC">Medical Certificate (MC)</option>
+                        <option value="PH">Public Holiday (PH)</option>
+                    </select>
+                </div>
+                <div class="settings-group" style="margin-top: 1rem;">
+                    <label class="settings-label">Replace With</label>
+                    <select id="swap-pic" class="settings-input">
+                        <option value="Ivan">Ivan</option>
+                        <option value="Shawn">Shawn</option>
+                        <option value="DJ">DJ</option>
+                    </select>
+                    <p class="settings-hint" id="swap-hint">System suggests current backup.</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="modal-btn secondary" onclick="closeModal('swap-modal')">Cancel</button>
+                <button class="modal-btn primary" id="confirm-swap-btn" onclick="confirmShiftSwap()">Update Roster</button>
+            </div>
+        </div>
+    </div>
+
+
     <script src="script.js"></script>
 </body>
 </html>
