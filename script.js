@@ -320,6 +320,7 @@ function updateActivePIC() {
 
 let allWeeks = [];
 let currentWeekIndex = 0;
+let currentView = 'week';
 
 async function initRoster() {
     try {
@@ -531,6 +532,7 @@ function changeWeek(delta) {
 }
 
 function toggleRosterView(view) {
+    currentView = view;
     const weekGrid = document.getElementById('roster-grid');
     const monthView = document.getElementById('month-view');
     const toggleWeek = document.getElementById('toggle-week');
