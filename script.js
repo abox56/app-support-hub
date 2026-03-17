@@ -1410,7 +1410,7 @@ async function loadAdminData() {
         }
 
         // Init Roster Generator
-        initRosterGen();
+        initRosterGen(weeks);
     } catch (e) {
         console.error("Failed to load admin data:", e);
     }
@@ -1428,10 +1428,11 @@ async function removeRosterWeek(id) {
 }
 
 
-function initRosterGen() {
+function initRosterGen(existingWeeks = []) {
     const select = document.getElementById('gen-week-range');
-    if (!select || select.children.length > 0) return;
+    if (!select) return;
 
+    const existingRanges = existingWeeks.map(w => w.dateRange);
     const options = [];
     let d = new Date();
     // Advance to next Monday
@@ -1447,12 +1448,16 @@ function initRosterGen() {
         const endStr = end.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
         
         const jsonRange = `${start.getDate().toString().padStart(2, '0')}${start.toLocaleString('en-US', {month: 'short'})}-${end.getDate().toString().padStart(2, '0')}${end.toLocaleString('en-US', {month: 'short'})}`;
-        const title = `Week ${i + 1} (${startStr} - ${endStr})`;
         
-        options.push(`<option value="${jsonRange}|${title}">${title}</option>`);
+        // Only add if this week doesn't already exist
+        if (!existingRanges.includes(jsonRange)) {
+            const title = `Week ${i + 1} (${startStr} - ${endStr})`;
+            options.push(`<option value="${jsonRange}|${title}">${title}</option>`);
+        }
         d.setDate(d.getDate() + 7);
     }
-    select.innerHTML = options.join('');
+    
+    select.innerHTML = options.join('') || '<option value="" disabled selected>All available weeks generated</option>';
 }
 
 async function generateWeeklyRoster() {
