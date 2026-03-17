@@ -398,16 +398,29 @@ function renderWeek(index) {
         shawnHours = 40; // Hardcoded calculation based on spec: 2 + 6 + 6 + 13 + 13
     }
 
-    grid.innerHTML = `
-        <div class="matrix-header">Shift</div>
-        <div class="matrix-header">Mon</div>
-        <div class="matrix-header">Tue</div>
-        <div class="matrix-header knowledge-wednesday-header">Wed ✽</div>
-        <div class="matrix-header">Thu</div>
-        <div class="matrix-header">Fri</div>
-        <div class="matrix-header">Sat</div>
-        <div class="matrix-header">Sun</div>
-    `;
+    // Parse starting date to show dates in headers
+    let startDate = new Date();
+    try {
+        const startPart = week.dateRange.split('-')[0];
+        const dayNum = parseInt(startPart.substring(0, 2));
+        const monthStr = startPart.substring(2);
+        startDate = new Date(`${dayNum} ${monthStr} 2026`);
+    } catch(e) {}
+
+    const dayHeaders = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+    let headerHtml = `<div class="matrix-header">Shift</div>`;
+    dayHeaders.forEach((abbr, i) => {
+        const d = new Date(startDate);
+        d.setDate(startDate.getDate() + i);
+        const dateStr = `${d.getDate()}/${d.getMonth() + 1}`;
+        const isWed = i === 2;
+        headerHtml += `
+            <div class="matrix-header ${isWed ? 'knowledge-wednesday-header' : ''}">
+                ${abbr} <span style="font-size: 0.75rem; opacity: 0.5; font-weight: 400; margin-left: 4px;">${dateStr}</span> ${isWed ? '✽' : ''}
+            </div>`;
+    });
+    grid.innerHTML = headerHtml;
+
     const dayKeys = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
     let maxRows = 0;
     if (week.days) {
