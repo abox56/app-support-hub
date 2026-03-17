@@ -1674,3 +1674,40 @@ async function triggerTestReport() {
         btn.disabled = false;
     }
 }
+
+async function testPinMessage() {
+    const title = document.getElementById('tg-target-group').value.trim();
+    const message = document.getElementById('tg-broadcast-msg').value.trim();
+    const statusDiv = document.getElementById('tg-pin-status');
+
+    if (!title || !message) return alert("Please enter both group title and message content.");
+
+    statusDiv.style.display = 'block';
+    statusDiv.style.background = 'rgba(255,255,255,0.05)';
+    statusDiv.style.color = 'var(--text-secondary)';
+    statusDiv.textContent = "⏳ Finding group and pinning message...";
+
+    try {
+        const res = await apiFetch('/api/test/pin-message', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title, message })
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+            statusDiv.style.background = 'rgba(0,255,136,0.1)';
+            statusDiv.style.color = '#00FF88';
+            statusDiv.textContent = `✅ Success! Message pinned in chat ID: ${data.chatId}`;
+        } else {
+            statusDiv.style.background = 'rgba(255,61,0,0.1)';
+            statusDiv.style.color = '#FF3D00';
+            statusDiv.textContent = `❌ Error: ${data.error}`;
+        }
+    } catch (e) {
+        statusDiv.style.background = 'rgba(255,61,0,0.1)';
+        statusDiv.style.color = '#FF3D00';
+        statusDiv.textContent = `❌ Failed: ${e.message}`;
+    }
+}
+

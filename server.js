@@ -1255,6 +1255,43 @@ app.delete('/api/roster/week/:id', async (req, res) => {
     }
 });
 
+app.post('/api/test/pin-message', async (req, res) => {
+    try {
+        if (!tgClient || !tgClient.connected) {
+            return res.status(503).json({ error: "Telegram client not connected" });
+        }
+
+        const { title, message } = req.body;
+        if (!title || !message) {
+            return res.status(400).json({ error: "Title and message are required" });
+        }
+
+        const dialogs = await tgClient.getDialogs();
+        const targetChat = dialogs.find(d => d.title && d.title.includes(title));
+
+        if (!targetChat) {
+            return res.status(404).json({ error: `Could not find chat with title: ${title}` });
+        }
+
+        const chatId = targetChat.id;
+        const sentMsg = await tgClient.sendMessage(chatId, { message });
+
+        await tgClient.invoke(
+            new Api.messages.UpdatePinnedMessage({
+                peer: chatId,
+                id: sentMsg.id,
+                unpin: false,
+                pmOneSide: false,
+            })
+        );
+
+        res.json({ success: true, message: "Message sent and pinned", chatId: chatId.toString() });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+
 
 // Fallback to index.html for unknown routes (SPA style)
 app.get('*', (req, res) => {
