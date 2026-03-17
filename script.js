@@ -415,8 +415,8 @@ function renderWeek(index) {
         const dateStr = `${d.getDate()}/${d.getMonth() + 1}`;
         const isWed = i === 2;
         headerHtml += `
-            <div class="matrix-header ${isWed ? 'knowledge-wednesday-header' : ''}">
-                ${abbr} <span style="font-size: 0.75rem; opacity: 0.5; font-weight: 400; margin-left: 4px;">${dateStr}</span> ${isWed ? '✽' : ''}
+            <div class="matrix-header ${isWed ? 'knowledge-wednesday-header' : ''}" style="font-weight: 800; color: #FFFFFF;">
+                ${abbr} <span style="font-size: 0.85rem; color: var(--cyan); font-weight: 700; margin-left: 6px;">${dateStr}</span> ${isWed ? '✽' : ''}
             </div>`;
     });
     grid.innerHTML = headerHtml;

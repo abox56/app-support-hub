@@ -652,13 +652,16 @@ body {
 }
 
 .matrix-header {
-    font-size: 0.8rem;
-    color: var(--text-secondary);
+    font-size: 1rem;
+    color: #FFFFFF;
+    font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 1px;
-    padding-bottom: 0.5rem;
-    border-bottom: 1px solid var(--border-color);
+    padding: 12px 10px;
+    background: rgba(255, 255, 255, 0.04);
+    border-bottom: 2px solid var(--cyan);
     text-align: center;
+    border-radius: 8px 8px 0 0;
 }
 
 .knowledge-wednesday-header {
