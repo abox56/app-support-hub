@@ -1033,15 +1033,17 @@ app.post('/api/roster/generate', (req, res) => {
                     { time: "On-call", [backup]: "Backup" }
                 ];
                 
-                // Include standard Wednesday Sync
+                // Add Remark slot (Row 4) for all days to handle swaps/notes
                 if (day === 'Wednesday') {
                     weekDays[day].push({ 
-                        time: "14:00-16:00", 
+                        time: "", 
                         Ivan: "IN-OFFICE", 
                         DJ: "IN-OFFICE", 
                         Shawn: "IN-OFFICE", 
                         note: "Weekly Sync Meeting" 
                     });
+                } else {
+                    weekDays[day].push({ time: "", note: "" });
                 }
             }
         });
@@ -1088,14 +1090,13 @@ app.post('/api/roster/swap', (req, res) => {
         // Handle Remark
         if (reason === 'AL' || reason === 'MC') {
             const remarkText = `${currentPIC}: ${reason}`;
-            let remarkShift = shifts.find(s => s && s.time === ''); 
             
-            if (!remarkShift) {
-                if (shifts.length > 3) {
-                    remarkShift = shifts[3];
-                }
+            // Ensure we have at least 4 rows for the day (index 3 is the Remark row)
+            while (shifts.length < 4) {
+                shifts.push({ time: "" }); // Add empty rows until we reach the Remark slot
             }
 
+            const remarkShift = shifts[3]; // Always use the 4th row for Remarks/Sync
             if (remarkShift) {
                 const currentNote = remarkShift.note || '';
                 if (currentNote) {
