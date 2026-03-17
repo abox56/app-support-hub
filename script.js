@@ -490,19 +490,22 @@ function renderWeek(index) {
                         content += `<span class="away-badge">DJ: AL</span>`;
                     }
 
-                    if (shawn && typeof shawn === 'string' && shawn.includes('Offset')) {
-                        content += `<div class="offset-shift-box">Shawn: 19:00-01:00</div>`;
-                    } else if (shawn && shawn !== 'Rest Day' && shawn !== 'AL') {
-                         content += (content ? ' / ' : '') + 'Shawn';
+                    if (labelTitle !== 'Remark') {
+                        if (shawn && typeof shawn === 'string' && shawn.includes('Offset')) {
+                            content += `<div class="offset-shift-box">Shawn: 19:00-01:00</div>`;
+                        } else if (shawn && shawn !== 'Rest Day' && shawn !== 'AL') {
+                             content += (content ? ' / ' : '') + 'Shawn';
+                        }
+
+                        if (ivan && ivan !== 'Rest Day' && ivan !== 'AL') {
+                             content += (content ? ' / ' : '') + 'Ivan';
+                        }
+                        
+                        if (dj && dj !== 'Rest Day' && dj !== 'AL') {
+                             content += (content ? ' / ' : '') + 'DJ';
+                        }
                     }
 
-                    if (ivan && ivan !== 'Rest Day' && ivan !== 'AL') {
-                         content += (content ? ' / ' : '') + 'Ivan';
-                    }
-                    
-                    if (dj && dj !== 'Rest Day' && dj !== 'AL') {
-                         content += (content ? ' / ' : '') + 'DJ';
-                    }
 
                     // Render custom notes (used by shift swap)
                     if (shift.note && labelTitle === 'Remark') {
