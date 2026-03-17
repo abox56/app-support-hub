@@ -152,8 +152,36 @@ let db;
                     balance_hours FLOAT DEFAULT 0.0,
                     last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
-                -- Ensure column is there for existing setups
                 ALTER TABLE incident_updates ADD COLUMN is_support BOOLEAN DEFAULT FALSE;
+                
+                -- Ensure required columns exist in roster_shifts
+                SET @dbname = DATABASE();
+                SET @tablename = 'roster_shifts';
+                
+                -- Helper to add columns if they don't exist
+                -- row_index
+                SET @preparedStatement = (SELECT IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = @tablename AND COLUMN_NAME = 'row_index') > 0, 'SELECT 1', 'ALTER TABLE roster_shifts ADD COLUMN row_index INT AFTER day_name'));
+                PREPARE stmt FROM @preparedStatement; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+                -- Ivan
+                SET @preparedStatement = (SELECT IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = @tablename AND COLUMN_NAME = 'Ivan') > 0, 'SELECT 1', 'ALTER TABLE roster_shifts ADD COLUMN Ivan VARCHAR(100)'));
+                PREPARE stmt FROM @preparedStatement; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+                -- DJ
+                SET @preparedStatement = (SELECT IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = @tablename AND COLUMN_NAME = 'DJ') > 0, 'SELECT 1', 'ALTER TABLE roster_shifts ADD COLUMN DJ VARCHAR(100)'));
+                PREPARE stmt FROM @preparedStatement; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+                -- Shawn
+                SET @preparedStatement = (SELECT IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = @tablename AND COLUMN_NAME = 'Shawn') > 0, 'SELECT 1', 'ALTER TABLE roster_shifts ADD COLUMN Shawn VARCHAR(100)'));
+                PREPARE stmt FROM @preparedStatement; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+                -- note
+                SET @preparedStatement = (SELECT IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = @tablename AND COLUMN_NAME = 'note') > 0, 'SELECT 1', 'ALTER TABLE roster_shifts ADD COLUMN note TEXT'));
+                PREPARE stmt FROM @preparedStatement; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+                -- swapped
+                SET @preparedStatement = (SELECT IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = @tablename AND COLUMN_NAME = 'swapped') > 0, 'SELECT 1', 'ALTER TABLE roster_shifts ADD COLUMN swapped BOOLEAN DEFAULT FALSE'));
+                PREPARE stmt FROM @preparedStatement; EXECUTE stmt; DEALLOCATE PREPARE stmt;
             `);
             console.log("✅ MySQL Database schema fully initialized.");
 
