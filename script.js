@@ -600,9 +600,24 @@ function renderMonthView() {
 
     allWeeks.forEach((week, weekIdx) => {
         const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-        days.forEach(dayName => {
+        
+        // Calculate the starting date of this week from week.dateRange ("30Mar-05Apr")
+        let startDate = new Date(); // Fallback
+        try {
+            const startPart = week.dateRange.split('-')[0]; // "30Mar"
+            const dayNum = parseInt(startPart.substring(0, 2));
+            const monthStr = startPart.substring(2);
+            startDate = new Date(`${dayNum} ${monthStr} 2026`);
+        } catch(e) {}
+
+        days.forEach((dayName, dayIdx) => {
             const dayShifts = week.days[dayName] || [];
             
+            // Calculate actual date for this cell
+            const cellDate = new Date(startDate);
+            cellDate.setDate(startDate.getDate() + dayIdx);
+            const dateDisplay = `${cellDate.getDate()}/${cellDate.getMonth() + 1}`;
+
             // Extract personnel for this day
             const dayShiftPeople = [];
             const nightShiftPeople = [];
@@ -623,8 +638,8 @@ function renderMonthView() {
             html += `
                 <div class="month-day-cell glass ${isAL ? 'has-al' : ''}" onclick="renderWeek(${weekIdx}); toggleRosterView('week')">
                     <div class="month-date-num" style="display:flex; justify-content:space-between; align-items:center;">
-                        <span>${dayName.substring(0,3)}</span>
-                        ${note ? `<span title="${note}" style="color:var(--cyan); font-size:10px;">ℹ️</span>` : ''}
+                        <span style="font-size:0.65rem; opacity:0.6;">${dayName.substring(0,3)}</span>
+                        <span style="color:var(--cyan);">${dateDisplay}</span>
                     </div>
                     
                     <div class="month-shift-pills">
@@ -639,7 +654,6 @@ function renderMonthView() {
                     ${isAL ? `<div class="month-holiday-badge">AL/MC</div>` : ''}
                 </div>
             `;
-
         });
     });
 
