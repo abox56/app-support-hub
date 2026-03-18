@@ -1,6 +1,7 @@
 let HUB_PASSWORD = localStorage.getItem('hub_access_token') || '';
 let ALL_INCIDENTS = []; // Global cache for detailed view
 let PUBLIC_HOLIDAYS = []; // Cache for calendar highlighting
+let CURRENT_FILTER_MODE = 'all'; // 'all', 'urgent', 'overdue'
 
 async function apiFetch(url, options = {}) {
     if (!options.headers) options.headers = {};
@@ -719,14 +720,39 @@ async function initTimeline() {
         const incidents = await response.json();
         ALL_INCIDENTS = incidents; // Store for detals view
 
+        // Apply Global Filter Mode
+        let displayIncidents = [...incidents];
+        if (CURRENT_FILTER_MODE === 'urgent') {
+            displayIncidents = incidents.filter(i => i.category === '[USER_SUPPORT]' && i.status !== 'Resolved');
+        } else if (CURRENT_FILTER_MODE === 'overdue') {
+            const now = new Date();
+            const FIVE_MINS = 5 * 60 * 1000;
+            displayIncidents = incidents.filter(i => {
+                const firstTime = new Date(i.first_timestamp);
+                const isCritical = (i.category === '[PROVIDER_ALERTS]' || i.category === '[SYSTEM_LOGS]' || i.category === 'SMI Monitoring' || i.category === 'System Infra' || i.category === 'Provider API');
+                return isCritical && i.status !== 'Resolved' && (now - firstTime > FIVE_MINS);
+            });
+        }
+
         const feed = document.getElementById('incident-feed');
         const timelineFeeds = document.querySelectorAll('.timeline-feed');
         if (feed) feed.innerHTML = ''; 
         timelineFeeds.forEach(tf => tf.innerHTML = '');
 
-        incidents.forEach(inc => {
+        displayIncidents.forEach(inc => {
             renderIncidentCard(inc);
         });
+
+        // Add "Filter Active" header if filtered
+        if (CURRENT_FILTER_MODE !== 'all' && feed) {
+            const filterInfo = document.createElement('div');
+            filterInfo.style = "grid-column: 1/-1; background: rgba(0, 229, 255, 0.1); border: 1px solid var(--cyan); border-radius: 8px; padding: 0.8rem; margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center;";
+            filterInfo.innerHTML = `
+                <span style="color: var(--cyan); font-weight: 600;">⚠️ FILTER ACTIVE: Showing ${CURRENT_FILTER_MODE.toUpperCase()} cases only</span>
+                <button onclick="clearIncidentFilter()" class="gen-btn" style="padding: 4px 12px; font-size: 11px;">SHOW ALL INCIDENTS</button>
+            `;
+            feed.prepend(filterInfo);
+        }
 
         updateStatPills(incidents);
         renderAnalytics(incidents); 
@@ -738,28 +764,34 @@ async function initTimeline() {
         // Pulse Alert Logic: Check for recent [USER_SUPPORT]
         const mostRecentUserSupport = incidents.find(i => i.category === '[USER_SUPPORT]' && i.status === 'Captured');
         const pulseZone = document.getElementById('pulse-alert');
-        if (mostRecentUserSupport && pulseZone) {
-            pulseZone.style.display = 'block';
-        } else if (pulseZone) {
-            pulseZone.style.display = 'none';
+        if (pulseZone) {
+            if (mostRecentUserSupport) {
+                pulseZone.style.display = 'block';
+                pulseZone.style.cursor = 'pointer';
+                pulseZone.onclick = () => filterUrgent();
+            } else {
+                pulseZone.style.display = 'none';
+            }
         }
 
-        // Overdue Alert Banner Logic: Show if any critical task [PROVIDER_ALERTS] or [SYSTEM_LOGS] missed for 5 mins
+        // Overdue Alert Banner Logic
         const now = new Date();
         const FIVE_MINS = 5 * 60 * 1000;
         const overdueCriticals = incidents.filter(i => {
             const firstTime = new Date(i.first_timestamp);
-            const isCriticalAI = i.category === '[PROVIDER_ALERTS]' || i.category === '[SYSTEM_LOGS]';
-            const isCriticalKeyword = i.category === 'SMI Monitoring' || i.category === 'System Infra' || i.category === 'Provider API';
-            return (isCriticalAI || isCriticalKeyword) && i.status !== 'Resolved' && (now - firstTime > FIVE_MINS);
+            const isCritical = (i.category === '[PROVIDER_ALERTS]' || i.category === '[SYSTEM_LOGS]' || i.category === 'SMI Monitoring' || i.category === 'System Infra' || i.category === 'Provider API');
+            return isCritical && i.status !== 'Resolved' && (now - firstTime > FIVE_MINS);
         });
 
         const overdueBanner = document.getElementById('overdue-alert');
         if (overdueBanner) {
             if (overdueCriticals.length > 0) {
                 const countMsg = overdueCriticals.length === 1 ? '1 OVERDUE SUPPORT REQUEST' : `${overdueCriticals.length} OVERDUE SUPPORT REQUESTS`;
-                overdueBanner.querySelector('.alert-text').textContent = `CRITICAL: ${countMsg} REQUIRES IMMEDIATE ACTION`;
+                const alertText = overdueBanner.querySelector('.alert-text');
+                if (alertText) alertText.textContent = `CRITICAL: ${countMsg} REQUIRES IMMEDIATE ACTION`;
                 overdueBanner.style.display = 'flex';
+                overdueBanner.style.cursor = 'pointer';
+                overdueBanner.onclick = () => filterOverdue();
             } else {
                 overdueBanner.style.display = 'none';
             }
@@ -769,6 +801,27 @@ async function initTimeline() {
         console.error('Failed to load incidents:', err);
     }
 }
+
+function filterUrgent() {
+    CURRENT_FILTER_MODE = 'urgent';
+    // Switch to Operations tab (ops is tabId from index.html)
+    const opsTabBtn = document.querySelector('button[onclick*="\'ops\'"]');
+    if (opsTabBtn) switchTab('ops', opsTabBtn);
+    loadIncidents();
+}
+
+function filterOverdue() {
+    CURRENT_FILTER_MODE = 'overdue';
+    const opsTabBtn = document.querySelector('button[onclick*="\'ops\'"]');
+    if (opsTabBtn) switchTab('ops', opsTabBtn);
+    loadIncidents();
+}
+
+function clearIncidentFilter() {
+    CURRENT_FILTER_MODE = 'all';
+    loadIncidents();
+}
+
 
 function renderIncidentCard(inc) {
     const feed = document.getElementById('incident-feed');
