@@ -1764,3 +1764,26 @@ async function testPinMessage() {
     }
 }
 
+function loadPICTemplate() {
+    const picElement = document.getElementById('current-pic');
+    let picName = 'PIC';
+    if (picElement) {
+        picName = picElement.textContent.replace('(Active)', '').trim();
+    }
+
+    const now = new Date();
+    const dateStr = `${now.getDate()}/${now.getMonth() + 1}`;
+    
+    // Guess time slot based on current hour
+    const hour = now.getHours();
+    let timeSlot = "10am-7pm";
+    if (hour >= 16 || hour < 1) {
+        timeSlot = "4pm-1am";
+    }
+
+    const template = `PIC:${picName} ${dateStr} ${timeSlot}`;
+    const textarea = document.getElementById('tg-broadcast-msg');
+    if (textarea) {
+        textarea.value = template;
+    }
+}

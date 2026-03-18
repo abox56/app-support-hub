@@ -562,11 +562,18 @@
                         <p class="admin-card-desc">Send and pin broadcast messages to groups.</p>
                         <div class="admin-form">
                             <div class="form-group">
-                                <label>Group Name (Title)</label>
-                                <input type="text" id="tg-target-group" placeholder="e.g. CW App Int Group" value="CW App Int Group">
+                                <label>Target Group</label>
+                                <select id="tg-target-group">
+                                    <option value="CW App Int Group">CW App Int Group</option>
+                                    <option value="CW Apps Support">CW Apps Support</option>
+                                    <option value="CIG - CW Support">CIG - CW Support</option>
+                                </select>
                             </div>
                             <div class="form-group">
-                                <label>Message Content</label>
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <label>Message Content</label>
+                                    <button class="gen-btn" onclick="loadPICTemplate()" style="padding: 2px 8px; font-size: 10px; opacity: 0.8;">LOAD PIC TEMPLATE</button>
+                                </div>
                                 <textarea id="tg-broadcast-msg" placeholder="Enter message to pin..."></textarea>
                             </div>
                             <button class="gen-btn" onclick="testPinMessage()">SEND & PIN MESSAGE</button>
