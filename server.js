@@ -1760,6 +1760,18 @@ app.post('/api/manual/schedule', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+async function findChatIdByTitle(title) {
+    if (!tgClient || !tgClient.connected) return null;
+    try {
+        const dialogs = await tgClient.getDialogs({});
+        const chat = dialogs.find(d => d.title === title || (d.entity && d.entity.title === title));
+        return chat ? chat.id : null;
+    } catch (e) {
+        console.error("findChat error:", e.message);
+        return null;
+    }
+}
+
 // Fallback to index.html for unknown routes (SPA style)
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
