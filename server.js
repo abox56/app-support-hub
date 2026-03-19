@@ -522,16 +522,14 @@ async function generateDailySummaryAI(incidents, supportActivities) {
     const incSummary = incidents.map(i => `[${i.category}] ${i.ai_summary || i.main_content} (Group: ${i.source}) [${i.status}]`).join('\n') || 'No major issues captured.';
     const supportSummary = supportActivities.map(s => `- ${s.name}: ${s.total_attended} incidents attended`).join('\n') || 'No support activity recorded.';
 
-    const prompt = `
+    const promptRecord = await db.get("SELECT config_value FROM system_config WHERE config_key = 'task_summary_ai_prompt'");
+    let prompt = promptRecord?.config_value || `
     Generate a 24-Hour Executive Summary for the Cloudway Application Support Hub.
-    Date: ${dateStr}
-
+    Date: {{DATE}}
     INCIDENT OVERVIEW (LAST 24H):
-    ${incSummary}
-
+    {{INCIDENTS}}
     SUPPORT TEAM PERFORMANCE:
-    ${supportSummary}
-
+    {{SUPPORT_TEAM}}
     REQUIREMENTS:
     1. Header: 📊 *DAILY SUPPORT HUB EXECUTIVE SUMMARY* 📊
     2. Be professional, concise, and highlight if there were many [PROVIDER_ALERTS] or [SYSTEM_LOGS].
@@ -539,6 +537,7 @@ async function generateDailySummaryAI(incidents, supportActivities) {
     4. Provide a "Security/Stability Score" (e.g. 95%).
     5. Formatting: Use Telegram Markdown.
     `;
+    prompt = prompt.replace('{{DATE}}', dateStr).replace('{{INCIDENTS}}', incSummary).replace('{{SUPPORT_TEAM}}', supportSummary);
 
     try {
         const result = await primaryModel.generateContent(prompt);
