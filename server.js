@@ -732,16 +732,12 @@ async function initTelegram() {
         // --- DYNAMIC CRON INITIALIZATION ---
         await setupShiftPinCron();
 
-        // --- SCHEDULED DAILY SUMMARY (10 AM) ---
+        // --- SCHEDULED DAILY SUMMARY (10 AM SG) ---
         cron.schedule('0 10 * * *', async () => {
             console.log("⏰ 10:00 AM Cron: Generating Daily Summary...");
             try {
                 const TWENTY_FOUR_HOURS_AGO = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-                
-                // Fetch recent incidents
                 const incidents = await db.all(`SELECT * FROM incidents WHERE last_update > ?`, [TWENTY_FOUR_HOURS_AGO]);
-                
-                // Fetch support stats
                 const supportTeam = await db.all(`SELECT * FROM support_members`);
                 const supportStats = [];
                 for (const member of supportTeam) {
@@ -752,34 +748,21 @@ async function initTelegram() {
                 const summaryReport = await generateDailySummaryAI(incidents, supportStats);
                 
                 if (summaryReport && tgClient && tgClient.connected) {
-                    // Send to specific Admin ID if defined, otherwise send to all whitelisted chats as a fallback report
                     const adminId = process.env.ADMIN_TG_ID;
                     if (adminId) {
                         await tgClient.sendMessage(adminId, { message: summaryReport, parseMode: 'markdown' });
                         console.log("✅ Daily Summary sent to Admin.");
-                    } else {
-                        // If no Admin ID, send to first non-blacklisted chat as a broadcast
-                        const blacklist = await db.all(`SELECT chat_id FROM blacklisted_chats`);
-                        const blacklistedIds = blacklist.map(b => String(b.chat_id));
-                        
-                        // We need to fetch chats the client actually sees or just try the first known recorded chat
-                        const recentChat = await db.get(`SELECT chat_id FROM message_analysis_logs WHERE chat_id NOT IN (SELECT chat_id FROM blacklisted_chats) LIMIT 1`);
-                        if (recentChat) {
-                            await tgClient.sendMessage(recentChat.chat_id, { message: summaryReport, parseMode: 'markdown' });
-                            console.log("✅ Daily Summary broadcast to first available non-blacklisted chat.");
-                        }
                     }
                 }
             } catch (err) {
                 console.error("❌ Cron Summary Failed:", err.message);
             }
+        }, {
+            scheduled: true,
+            timezone: "Asia/Singapore"
         });
 
-        // --- AUTOMATED SHIFT PIN TASK (10 AM) ---
-        cron.schedule('0 10 * * *', async () => {
-            console.log("⏰ 10:00 AM Cron: Triggering Automated Shift Pin...");
-            await runShiftPinTask();
-        });
+        // --- MANUALLY REMOVED DUPLICATE CRON (IT IS NOW HANDLED BY setupShiftPinCron) ---
 
         // --- TEST ENDPOINT FOR PIN TASK ---
         app.post('/api/test/trigger-pin-task', async (req, res) => {
@@ -1351,6 +1334,9 @@ async function setupShiftPinCron() {
         activePinCronJob = cron.schedule(scheduleRecord.config_value, async () => {
             console.log(`⏰ Scheduled Automation Trigger [${scheduleRecord.config_value}]: Starting Shift Pin Task...`);
             await runShiftPinTask();
+        }, {
+            scheduled: true,
+            timezone: "Asia/Singapore"
         });
 
         console.log(`✅ Shift Pin Automation Scheduled: [${scheduleRecord.config_value}]`);
@@ -1376,7 +1362,8 @@ function isCurrentWeek(dateRange) {
         const end = parseDate(endPart);
         end.setHours(23, 59, 59, 999);
         
-        const now = new Date();
+        const sgTime = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Singapore', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+        const now = new Date(sgTime);
         return now >= start && now <= end;
     } catch (e) {
         return false;
@@ -1386,13 +1373,26 @@ function isCurrentWeek(dateRange) {
 async function runShiftPinTask() {
     console.log("🛠️ Starting runShiftPinTask...");
     try {
+        const sgNowString = new Intl.DateTimeFormat('en-US', {
+            timeZone: 'Asia/Singapore',
+            year: 'numeric', month: '2-digit', day: '2-digit',
+            hour: '2-digit', minute: '2-digit', second: '2-digit',
+            hour12: false
+        }).format(new Date());
+        
+        // formats usually as MM/DD/YYYY, HH:mm:ss
+        const parts = sgNowString.split(', ');
+        const dateParts = parts[0].split('/');
+        const timeParts = parts[1].split(':');
+        
+        const now = new Date(dateParts[2], dateParts[0]-1, dateParts[1], timeParts[0], timeParts[1], timeParts[2]);
+        
         if (!tgClient || !tgClient.connected) {
-            const errMsg = `❌ Failed (Telegram Disconnected at ${new Date().toLocaleTimeString()})`;
+            const errMsg = `❌ Failed (Telegram Disconnected at ${now.toLocaleTimeString()})`;
             await db.run("INSERT INTO system_config (config_key, config_value) VALUES ('shift_pin_last_status', ?) ON CONFLICT(config_key) DO UPDATE SET config_value = excluded.config_value", [errMsg]);
             return;
         }
 
-        const now = new Date();
         const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
         const todayName = dayNames[now.getDay()];
         const dateStr = `${now.getDate()}/${now.getMonth() + 1}`;
