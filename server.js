@@ -45,6 +45,7 @@ let db;
 
             // Unified DB Shim (MySQL uses query/execute with different param handling than SQLite)
             db = {
+                isMySQL: true,
                 all: async (sql, params = []) => {
                     const [rows] = await pool.execute(sql, params);
                     return rows;
@@ -1370,6 +1371,22 @@ function isCurrentWeek(dateRange) {
     }
 }
 
+async function dbUpsert(table, matchKey, data) {
+    const keys = Object.keys(data);
+    const values = Object.values(data);
+    const placeholders = keys.map(() => '?').join(', ');
+    
+    if (db.isMySQL) {
+        const updateStr = keys.map(k => `\`${k}\` = VALUES(\`${k}\`)`).join(', ');
+        const sql = `INSERT INTO ${table} (${keys.map(k => `\`${k}\``).join(', ')}) VALUES (${placeholders}) ON DUPLICATE KEY UPDATE ${updateStr}`;
+        return await db.run(sql, values);
+    } else {
+        const updateStr = keys.map(k => `${k} = excluded.${k}`).join(', ');
+        const sql = `INSERT INTO ${table} (${keys.join(', ')}) VALUES (${placeholders}) ON CONFLICT(${matchKey}) DO UPDATE SET ${updateStr}`;
+        return await db.run(sql, values);
+    }
+}
+
 async function runShiftPinTask() {
     console.log("🛠️ Starting runShiftPinTask...");
     try {
@@ -1479,21 +1496,17 @@ async function runShiftPinTask() {
         await tgClient.invoke(new Api.messages.UpdatePinnedMessage({ peer: chatId, id: sentMsg.id, unpin: false }));
 
         // Store new state
-        await db.run(
-            `INSERT INTO tg_pins (chat_title, msg_id, chat_id) VALUES (?, ?, ?)
-             ON CONFLICT(chat_title) DO UPDATE SET msg_id = excluded.msg_id, chat_id = excluded.chat_id`,
-            [targetTitle, sentMsg.id, chatId.toString()]
-        );
+        await dbUpsert('tg_pins', 'chat_title', { chat_title: targetTitle, msg_id: sentMsg.id, chat_id: chatId.toString() });
 
         const statusMsg = `✅ Success (Pinned at ${new Date().toLocaleTimeString('en-SG')})`;
-        await db.run("INSERT INTO system_config (config_key, config_value) VALUES ('shift_pin_last_status', ?) ON CONFLICT(config_key) DO UPDATE SET config_value = excluded.config_value", [statusMsg]);
+        await dbUpsert('system_config', 'config_key', { config_key: 'shift_pin_last_status', config_value: statusMsg });
 
         console.log(`✅ Automated shift pin successful for [${targetTitle}].`);
 
     } catch (e) {
         console.error("❌ Critical Failure in runShiftPinTask:", e);
         const errMsg = `❌ Error: ${e.message.substring(0, 50)}`;
-        await db.run("INSERT INTO system_config (config_key, config_value) VALUES ('shift_pin_last_status', ?) ON CONFLICT(config_key) DO UPDATE SET config_value = excluded.config_value", [errMsg]);
+        await dbUpsert('system_config', 'config_key', { config_key: 'shift_pin_last_status', config_value: errMsg });
     }
 }
 
@@ -1516,8 +1529,8 @@ app.post('/api/config/shift-pin', async (req, res) => {
         if (!hour || !target) return res.status(400).json({ error: "Missing parameters" });
         
         const cronStr = `0 ${hour} * * *`;
-        await db.run("INSERT INTO system_config (config_key, config_value) VALUES ('shift_pin_cron', ?) ON CONFLICT(config_key) DO UPDATE SET config_value = excluded.config_value", [cronStr]);
-        await db.run("INSERT INTO system_config (config_key, config_value) VALUES ('shift_pin_target_chat', ?) ON CONFLICT(config_key) DO UPDATE SET config_value = excluded.config_value", [target]);
+        await dbUpsert('system_config', 'config_key', { config_key: 'shift_pin_cron', config_value: cronStr });
+        await dbUpsert('system_config', 'config_key', { config_key: 'shift_pin_target_chat', config_value: target });
         
         await setupShiftPinCron();
         res.json({ success: true, message: "Settings updated and Cron rescheduled." });
