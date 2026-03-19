@@ -1942,6 +1942,7 @@ async function testPinMessage() {
     try {
         const res = await apiFetch('/api/manual/schedule', {
             method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ title, message, scheduledTime: scheduleTime || null })
         });
         const data = await res.json();
