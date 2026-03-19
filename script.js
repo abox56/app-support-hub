@@ -1494,6 +1494,40 @@ async function loadAdminData() {
     }
 }
 
+function showToast(message) {
+    const toast = document.createElement('div');
+    toast.style = `
+        position: fixed;
+        bottom: 2rem;
+        right: 2rem;
+        background: var(--cyan);
+        color: #000;
+        padding: 0.8rem 1.5rem;
+        border-radius: 8px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        z-index: 10000;
+        font-weight: 600;
+        font-size: 0.9rem;
+        transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        transform: translateY(100px);
+        opacity: 0;
+    `;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    
+    // Trigger animation
+    setTimeout(() => {
+        toast.style.transform = 'translateY(0)';
+        toast.style.opacity = '1';
+    }, 10);
+
+    setTimeout(() => {
+        toast.style.transform = 'translateY(100px)';
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
 let showingArchivedTasks = false;
 
 async function loadAutomationHub(showHidden = null) {
@@ -1505,13 +1539,18 @@ async function loadAutomationHub(showHidden = null) {
         const list = document.getElementById('automation-tasks-list');
         if (!list) return;
 
-        list.innerHTML = tasks.map(task => `
-            <tr class="${task.hidden ? 'archived-task-row' : ''}">
-                <td style="font-weight: 500;">
-                    ${task.name}
-                    ${task.hidden ? '<span class="status-badge" style="font-size: 8px; margin-left: 5px; opacity: 0.6;">ARCHIVED</span>' : ''}
-                </td>
-                <td class="mono" style="opacity: 0.8;">${task.schedule.replace(/0 /g, '').replace(/ \* \* \*/g, '')}:00</td>
+        list.innerHTML = tasks.map(task => {
+            const cronParts = task.schedule.split(' ');
+            const hour = cronParts[1] ? cronParts[1].padStart(2, '0') : '00';
+            const displaySchedule = `${hour}:00`;
+
+            return `
+                <tr class="${task.hidden ? 'archived-task-row' : ''}">
+                    <td style="font-weight: 500;">
+                        ${task.name}
+                        ${task.hidden ? '<span class="status-badge" style="font-size: 8px; margin-left: 5px; opacity: 0.6;">ARCHIVED</span>' : ''}
+                    </td>
+                    <td class="mono" style="opacity: 0.8;">${displaySchedule}</td>
                 <td><span class="status-badge ${task.lastStatus.includes('✅') ? 'success' : (task.lastStatus.includes('❌') ? 'error' : 'busy')}">${task.lastStatus}</span></td>
                 <td>
                     <button class="preview-btn" onclick="previewAutomationTask('${task.id}')">
@@ -1531,7 +1570,8 @@ async function loadAutomationHub(showHidden = null) {
                     </div>
                 </td>
             </tr>
-        `).join('') || `<tr><td colspan="5" style="text-align:center; opacity: 0.5; padding: 2rem;">No ${showingArchivedTasks ? 'archived' : 'active'} tasks found.</td></tr>`;
+        `;
+        }).join('') || `<tr><td colspan="5" style="text-align:center; opacity: 0.5; padding: 2rem;">No ${showingArchivedTasks ? 'archived' : 'active'} tasks found.</td></tr>`;
 
         // Footer toggle
         const hubFooter = document.querySelector('.automation-hub-footer');
