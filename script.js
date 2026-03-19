@@ -1488,23 +1488,29 @@ async function loadAdminData() {
         initRosterGen(weeks);
 
         // Load Automation Hub
-        loadAutomationHub();
+        loadAutomationHub(false);
     } catch (e) {
         console.error("Failed to load admin data:", e);
     }
 }
 
-async function loadAutomationHub() {
+let showingArchivedTasks = false;
+
+async function loadAutomationHub(showHidden = null) {
+    if (showHidden !== null) showingArchivedTasks = showHidden;
     try {
-        const res = await apiFetch('/api/automation/tasks');
+        const res = await apiFetch(`/api/automation/tasks?showHidden=${showingArchivedTasks}`);
         const tasks = await res.json();
         
         const list = document.getElementById('automation-tasks-list');
         if (!list) return;
 
         list.innerHTML = tasks.map(task => `
-            <tr>
-                <td style="font-weight: 500;">${task.name}</td>
+            <tr class="${task.hidden ? 'archived-task-row' : ''}">
+                <td style="font-weight: 500;">
+                    ${task.name}
+                    ${task.hidden ? '<span class="status-badge" style="font-size: 8px; margin-left: 5px; opacity: 0.6;">ARCHIVED</span>' : ''}
+                </td>
                 <td class="mono" style="opacity: 0.8;">${task.schedule.replace(/0 /g, '').replace(/ \* \* \*/g, '')}:00</td>
                 <td><span class="status-badge ${task.lastStatus.includes('✅') ? 'success' : (task.lastStatus.includes('❌') ? 'error' : 'busy')}">${task.lastStatus}</span></td>
                 <td>
@@ -1513,13 +1519,32 @@ async function loadAutomationHub() {
                     </button>
                 </td>
                 <td>
-                    <label class="switch">
-                        <input type="checkbox" ${task.enabled ? 'checked' : ''} onchange="toggleAutomationTask('${task.id}', this)">
-                        <span class="slider"></span>
-                    </label>
+                    <div style="display: flex; align-items: center; gap: 1rem;">
+                        <label class="switch">
+                            <input type="checkbox" ${task.enabled ? 'checked' : ''} onchange="toggleAutomationTask('${task.id}', this)">
+                            <span class="slider"></span>
+                        </label>
+                        ${task.hidden ? 
+                            `<button class="archive-btn" onclick="archiveTask('${task.id}', false)" title="Restore Task">🔄</button>` : 
+                            `<button class="archive-btn" onclick="archiveTask('${task.id}', true)" title="Archive Task">🗑️</button>`
+                        }
+                    </div>
                 </td>
             </tr>
-        `).join('');
+        `).join('') || `<tr><td colspan="5" style="text-align:center; opacity: 0.5; padding: 2rem;">No ${showingArchivedTasks ? 'archived' : 'active'} tasks found.</td></tr>`;
+
+        // Footer toggle
+        const hubFooter = document.querySelector('.automation-hub-footer');
+        let toggleLink = document.getElementById('archive-toggle-link');
+        if (!toggleLink) {
+            toggleLink = document.createElement('a');
+            toggleLink.id = 'archive-toggle-link';
+            toggleLink.href = 'javascript:void(0)';
+            toggleLink.style = 'font-size: 0.7rem; color: var(--text-secondary); text-decoration: none; display: block; margin-top: 1rem;';
+            hubFooter.parentNode.insertBefore(toggleLink, hubFooter.nextSibling);
+        }
+        toggleLink.textContent = showingArchivedTasks ? '🔙 Hide Archived Tasks' : '📦 Show Archived Tasks';
+        toggleLink.onclick = () => loadAutomationHub(!showingArchivedTasks);
 
         // Also update Target Group
         const resPin = await apiFetch('/api/config/shift-pin');
@@ -1529,6 +1554,20 @@ async function loadAutomationHub() {
 
     } catch (e) {
         console.error("Hub Load Error:", e);
+    }
+}
+
+async function archiveTask(taskId, shouldArchive) {
+    if (shouldArchive && !confirm(`Archive ${taskId}? It will be hidden and disabled.`)) return;
+    try {
+        await apiFetch('/api/automation/archive', {
+            method: 'POST',
+            body: JSON.stringify({ taskId, archive: shouldArchive })
+        });
+        showToast(shouldArchive ? "Task archived" : "Task restored");
+        loadAutomationHub();
+    } catch (e) {
+        alert("Operation Failed: " + e.message);
     }
 }
 

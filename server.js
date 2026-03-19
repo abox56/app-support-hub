@@ -1593,22 +1593,25 @@ app.post('/api/config/shift-pin', async (req, res) => {
 // --- AUTOMATION HUB API ---
 app.get('/api/automation/tasks', async (req, res) => {
     try {
-        const tasks = [
-            {
-                id: 'shift_pin',
-                name: 'Daily Shift Pinning',
-                schedule: (await db.get("SELECT config_value FROM system_config WHERE config_key = 'shift_pin_cron'"))?.config_value || '0 10 * * *',
-                lastStatus: (await db.get("SELECT config_value FROM system_config WHERE config_key = 'shift_pin_last_status'"))?.config_value || 'Idle',
-                enabled: (await db.get("SELECT config_value FROM system_config WHERE config_key = 'task_shift_pin_enabled'"))?.config_value !== '0'
-            },
-            {
-                id: 'daily_summary',
-                name: 'Daily Activity Summary',
-                schedule: '0 10 * * *', // Summary is fixed for now
-                lastStatus: (await db.get("SELECT config_value FROM system_config WHERE config_key = 'task_summary_last_status'"))?.config_value || 'Idle',
-                enabled: (await db.get("SELECT config_value FROM system_config WHERE config_key = 'task_summary_enabled'"))?.config_value === '1'
-            }
+        const showHidden = req.query.showHidden === 'true';
+        const rawTasks = [
+            { id: 'shift_pin', name: 'Daily Shift Pinning' },
+            { id: 'daily_summary', name: 'Daily Activity Summary' }
         ];
+
+        const tasks = [];
+        for (const t of rawTasks) {
+            const hidden = (await db.get("SELECT config_value FROM system_config WHERE config_key = ?", [`task_${t.id}_hidden`]))?.config_value === '1';
+            if (hidden && !showHidden) continue;
+
+            tasks.push({
+                ...t,
+                schedule: t.id === 'shift_pin' ? (await db.get("SELECT config_value FROM system_config WHERE config_key = 'shift_pin_cron'"))?.config_value || '0 10 * * *' : '0 10 * * *',
+                lastStatus: (await db.get("SELECT config_value FROM system_config WHERE config_key = ?", [t.id === 'shift_pin' ? 'shift_pin_last_status' : 'task_summary_last_status']))?.config_value || 'Idle',
+                enabled: (await db.get("SELECT config_value FROM system_config WHERE config_key = ?", [t.id === 'shift_pin' ? 'task_shift_pin_enabled' : 'task_summary_enabled']))?.config_value === '1',
+                hidden
+            });
+        }
         res.json(tasks);
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -1618,6 +1621,21 @@ app.post('/api/automation/toggle', async (req, res) => {
         const { taskId, enabled } = req.body;
         const configKey = taskId === 'shift_pin' ? 'task_shift_pin_enabled' : 'task_summary_enabled';
         await dbUpsert('system_config', 'config_key', { config_key: configKey, config_value: enabled ? '1' : '0' });
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/automation/archive', async (req, res) => {
+    try {
+        const { taskId, archive } = req.body;
+        const configKey = `task_${taskId}_hidden`;
+        await dbUpsert('system_config', 'config_key', { config_key: configKey, config_value: archive ? '1' : '0' });
+        
+        // Auto-disable if archiving
+        if (archive) {
+            const enabledKey = taskId === 'shift_pin' ? 'task_shift_pin_enabled' : 'task_summary_enabled';
+            await dbUpsert('system_config', 'config_key', { config_key: enabledKey, config_value: '0' });
+        }
         res.json({ success: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });

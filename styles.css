@@ -2873,6 +2873,25 @@ input:checked + .slider:before {
     color: #000;
 }
 
+.archive-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1rem;
+    padding: 0;
+    opacity: 0.5;
+    transition: opacity 0.2s;
+}
+
+.archive-btn:hover {
+    opacity: 1;
+}
+
+.archived-task-row {
+    opacity: 0.6;
+    background: rgba(255, 255, 255, 0.02);
+}
+
 .manual-tools-divider {
     margin: 2.5rem 0;
     text-align: center;
