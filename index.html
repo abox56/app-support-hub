@@ -553,30 +553,61 @@
                         </div>
                     </div>
 
-                    <!-- Telegram Tools -->
-                    <div class="admin-card glass">
+                    <!-- Telegram Automation & Tools -->
+                    <div class="admin-card glass" style="grid-column: 1 / -1;">
                         <div class="admin-card-header">
-                            <span class="admin-card-icon">📢</span>
-                            <h3 class="admin-card-alias">Telegram Tools</h3>
+                            <span class="admin-card-icon">🤖</span>
+                            <h3 class="admin-card-alias">Telegram Automation Controls</h3>
                         </div>
-                        <p class="admin-card-desc">Send and pin broadcast messages to groups.</p>
-                        <div class="admin-form">
-                            <div class="form-group">
-                                <label>Target Group</label>
-                                <select id="tg-target-group">
+                        <p class="admin-card-desc">Configure when and where the automated daily shift pin occurs.</p>
+                        
+                        <div class="automation-setup-grid">
+                            <div class="automation-column">
+                                <label class="details-label">SCHEDULED TIME (DAILY)</label>
+                                <div class="time-selector-row">
+                                    <select id="automation-hour" class="glass-input">
+                                        <option value="09">09:00 AM</option>
+                                        <option value="10" selected>10:00 AM</option>
+                                        <option value="11">11:00 AM</option>
+                                        <option value="12">12:00 PM</option>
+                                        <option value="13">01:00 PM</option>
+                                    </select>
+                                    <button onclick="saveAutomationSettings()" class="action-btn" style="min-width: 120px;">Save Schedule</button>
+                                </div>
+                            </div>
+                            <div class="automation-column">
+                                <label class="details-label">TARGET GROUP</label>
+                                <select id="automation-target" class="glass-input">
                                     <option value="CW App Int Group">CW App Int Group</option>
                                     <option value="CW Apps Support">CW Apps Support</option>
                                     <option value="CIG - CW Support">CIG - CW Support</option>
                                 </select>
                             </div>
+                        </div>
+
+                        <div class="automation-status-zone glass">
+                            <div class="status-header">
+                                <span class="details-label">LAST RUN MONITOR</span>
+                                <span id="automation-last-status" class="status-badge busy">Loading...</span>
+                            </div>
+                            <div class="status-actions">
+                                <button class="gen-btn" onclick="triggerShiftPinTask()" style="background: var(--purple);">EXECUTE MANUAL OVERRIDE NOW</button>
+                            </div>
+                        </div>
+
+                        <div class="manual-tools-divider">
+                            <span>OR SEND MANUAL BROADCAST</span>
+                        </div>
+
+                        <div class="admin-form manual-broadcast-form">
                             <div class="form-group">
                                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                                    <label>Message Content</label>
+                                    <label class="details-label">Message Content</label>
                                     <button class="gen-btn" onclick="loadPICTemplate()" style="padding: 2px 8px; font-size: 10px; opacity: 0.8;">LOAD PIC TEMPLATE</button>
                                 </div>
                                 <textarea id="tg-broadcast-msg" placeholder="Enter message to pin..."></textarea>
                             </div>
-                            <button class="gen-btn" onclick="testPinMessage()">SEND & PIN MESSAGE</button>
+                            <button class="gen-btn" onclick="testPinMessage()">SEND & PIN BROADCAST</button>
                             <div id="tg-pin-status" style="margin-top: 1rem; display: none; font-size: 0.85rem; padding: 0.8rem; border-radius: 8px;"></div>
                         </div>
                     </div>

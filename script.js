@@ -1155,10 +1155,10 @@ function renderAnalytics(incidents) {
                 block.className = 'density-block';
                 if (i < activeBlocks) {
                     const ratio = i / maxBlocks;
-                    // Colors based on level (mimicking the Tableau warm gradient)
-                    if (ratio < 0.3) block.style.backgroundColor = "#F12711"; // Red-Orange
+                    // Reversed Gradient: Yellow (bottom) -> Orange -> Red (top)
+                    if (ratio < 0.3) block.style.backgroundColor = "#f8ff00"; // Electric Yellow
                     else if (ratio < 0.6) block.style.backgroundColor = "#f5af19"; // Bright Orange
-                    else block.style.backgroundColor = "#f8ff00"; // Electric Yellow
+                    else block.style.backgroundColor = "#F12711"; // Sharp Red-Orange
                     block.classList.add('active');
                     block.style.boxShadow = `0 0 8px ${block.style.backgroundColor}33`;
                 }
@@ -1486,8 +1486,59 @@ async function loadAdminData() {
 
         // Init Roster Generator
         initRosterGen(weeks);
+
+        // Load Shift Pin Automation Config
+        loadShiftPinConfig();
     } catch (e) {
         console.error("Failed to load admin data:", e);
+    }
+}
+
+async function loadShiftPinConfig() {
+    try {
+        const res = await apiFetch('/api/config/shift-pin');
+        const data = await res.json();
+        
+        const hourSelect = document.getElementById('automation-hour');
+        const targetSelect = document.getElementById('automation-target');
+        const statusSpan = document.getElementById('automation-last-status');
+
+        if (hourSelect) hourSelect.value = data.hour;
+        if (targetSelect) targetSelect.value = data.target;
+        if (statusSpan) {
+            statusSpan.textContent = data.lastStatus;
+            statusSpan.className = 'status-badge ' + (data.lastStatus.includes('✅') ? 'success' : (data.lastStatus.includes('❌') ? 'error' : 'busy'));
+        }
+    } catch (e) { console.error("Failed to load shift pin config:", e); }
+}
+
+async function saveAutomationSettings() {
+    const hour = document.getElementById('automation-hour').value;
+    const target = document.getElementById('automation-target').value;
+    const btn = document.querySelector('button[onclick="saveAutomationSettings()"]');
+    
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+
+    try {
+        const res = await apiFetch('/api/config/shift-pin', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ hour, target })
+        });
+        const data = await res.json();
+        if (data.success) {
+            btn.textContent = '✅ Saved';
+            setTimeout(() => {
+                btn.disabled = false;
+                btn.textContent = 'Save Schedule';
+            }, 2000);
+            loadShiftPinConfig(); // Refresh view
+        }
+    } catch (e) {
+        alert("Save Failed: " + e.message);
+        btn.disabled = false;
+        btn.textContent = 'Save Schedule';
     }
 }
 
@@ -1794,5 +1845,32 @@ function loadPICTemplate() {
     const textarea = document.getElementById('tg-broadcast-msg');
     if (textarea) {
         textarea.value = template;
+    }
+}
+
+async function triggerShiftPinTask() {
+    const statusDiv = document.getElementById('tg-pin-status');
+    statusDiv.style.display = 'block';
+    statusDiv.style.background = 'rgba(255,255,255,0.05)';
+    statusDiv.style.color = 'var(--text-secondary)';
+    statusDiv.textContent = "⏳ Triggering automated shift pin task...";
+
+    try {
+        const res = await apiFetch('/api/test/trigger-pin-task', { method: 'POST' });
+        const data = await res.json();
+        
+        if (data.success) {
+            statusDiv.style.background = 'rgba(168,85,247,0.1)';
+            statusDiv.style.color = '#A855F7';
+            statusDiv.textContent = `✅ Success! Today's shift been analyzed and pinned automatically. Check Telegram.`;
+        } else {
+            statusDiv.style.background = 'rgba(255,61,0,0.1)';
+            statusDiv.style.color = '#FF3D00';
+            statusDiv.textContent = `❌ Error: ${data.error || 'Check server logs'}`;
+        }
+    } catch (e) {
+        statusDiv.style.background = 'rgba(255,61,0,0.1)';
+        statusDiv.style.color = '#FF3D00';
+        statusDiv.textContent = `❌ API Error: ${e.message}`;
     }
 }

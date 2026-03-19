@@ -2417,7 +2417,7 @@ body {
     max-width: 200px;
     height: 8px;
     border-radius: 4px;
-    background: linear-gradient(to right, #F12711, #f5af19, #f8ff00);
+    background: linear-gradient(to right, #f8ff00, #f5af19, #F12711);
 }
 
 /* Radar & Flow Chart Styles */
@@ -2691,4 +2691,87 @@ body {
 @media (max-width: 1024px) {
     .month-layout { flex-direction: column; }
     .month-stats-sidebar { width: 100%; }
+}
+
+/* Telegram Automation Controls */
+.automation-setup-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    margin: 1rem 0;
+}
+
+.automation-column {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.time-selector-row {
+    display: flex;
+    gap: 1rem;
+}
+
+.automation-status-zone {
+    margin-top: 1.5rem;
+    padding: 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px dashed var(--border-color);
+}
+
+.status-header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.status-badge {
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.status-badge.busy { color: var(--text-secondary); opacity: 0.6; }
+.status-badge.success { color: #00FF88; }
+.status-badge.error { color: #FF3D00; }
+
+.manual-tools-divider {
+    margin: 2.5rem 0;
+    text-align: center;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.manual-tools-divider::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    height: 1px;
+    background: var(--border-color);
+    z-index: 1;
+}
+
+.manual-tools-divider span {
+    background: #0a0a0c; /* High-contrast dark bg */
+    padding: 0 1.5rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: var(--text-secondary);
+    position: relative;
+    z-index: 2;
+    text-transform: uppercase;
+}
+
+.manual-broadcast-form {
+    background: rgba(255, 255, 255, 0.015);
+    padding: 2rem;
+    border-radius: var(--border-radius);
+    border: 1px solid var(--border-color);
 }

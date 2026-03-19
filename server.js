@@ -146,6 +146,15 @@ let db;
                     name VARCHAR(255),
                     is_office_closed BOOLEAN DEFAULT TRUE
                 );
+                CREATE TABLE IF NOT EXISTS system_config (
+                    config_key VARCHAR(255) PRIMARY KEY,
+                    config_value TEXT
+                );
+                CREATE TABLE IF NOT EXISTS tg_pins (
+                    chat_title VARCHAR(255) PRIMARY KEY,
+                    msg_id BIGINT,
+                    chat_id VARCHAR(255)
+                );
                 CREATE TABLE IF NOT EXISTS time_bank (
                     id INT AUTO_INCREMENT PRIMARY KEY,
                     personnel_id VARCHAR(255),
@@ -291,6 +300,15 @@ let db;
                 holiday_date TEXT UNIQUE,
                 name TEXT,
                 is_office_closed BOOLEAN DEFAULT 1
+            );
+            CREATE TABLE IF NOT EXISTS system_config (
+                config_key TEXT PRIMARY KEY,
+                config_value TEXT
+            );
+            CREATE TABLE IF NOT EXISTS tg_pins (
+                chat_title TEXT PRIMARY KEY,
+                msg_id INTEGER,
+                chat_id TEXT
             );
             CREATE TABLE IF NOT EXISTS time_bank (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -711,6 +729,9 @@ async function initTelegram() {
             await addTelegramIncident(groupTitle, senderName, content, msgId, chatId, isSupport, replyToMsgId);
         }, new NewMessage({}));
 
+        // --- DYNAMIC CRON INITIALIZATION ---
+        await setupShiftPinCron();
+
         // --- SCHEDULED DAILY SUMMARY (10 AM) ---
         cron.schedule('0 10 * * *', async () => {
             console.log("⏰ 10:00 AM Cron: Generating Daily Summary...");
@@ -751,6 +772,22 @@ async function initTelegram() {
                 }
             } catch (err) {
                 console.error("❌ Cron Summary Failed:", err.message);
+            }
+        });
+
+        // --- AUTOMATED SHIFT PIN TASK (10 AM) ---
+        cron.schedule('0 10 * * *', async () => {
+            console.log("⏰ 10:00 AM Cron: Triggering Automated Shift Pin...");
+            await runShiftPinTask();
+        });
+
+        // --- TEST ENDPOINT FOR PIN TASK ---
+        app.post('/api/test/trigger-pin-task', async (req, res) => {
+            try {
+                await runShiftPinTask();
+                res.json({ success: true, message: "Pin Task triggered manually" });
+            } catch (e) {
+                res.status(500).json({ error: e.message });
             }
         });
 
@@ -1292,6 +1329,200 @@ app.post('/api/test/pin-message', async (req, res) => {
 });
 
 
+
+// --- Pin Task Helpers ---
+let activePinCronJob = null;
+
+async function setupShiftPinCron() {
+    try {
+        if (activePinCronJob) {
+            activePinCronJob.stop();
+            console.log("🛑 Existing Shift Pin Cron stopped.");
+        }
+
+        // 1. Get schedule from DB, fallback to 10 AM
+        let scheduleRecord = await db.get("SELECT config_value FROM system_config WHERE config_key = 'shift_pin_cron'");
+        if (!scheduleRecord) {
+            const defaultCron = '0 10 * * *';
+            await db.run("INSERT INTO system_config (config_key, config_value) VALUES (?, ?)", ['shift_pin_cron', defaultCron]);
+            scheduleRecord = { config_value: defaultCron };
+        }
+
+        activePinCronJob = cron.schedule(scheduleRecord.config_value, async () => {
+            console.log(`⏰ Scheduled Automation Trigger [${scheduleRecord.config_value}]: Starting Shift Pin Task...`);
+            await runShiftPinTask();
+        });
+
+        console.log(`✅ Shift Pin Automation Scheduled: [${scheduleRecord.config_value}]`);
+    } catch (e) {
+        console.error("❌ Failed to setup dynamic cron:", e.message);
+    }
+}
+
+function isCurrentWeek(dateRange) {
+    if (!dateRange || !dateRange.includes('-')) return false;
+    try {
+        const [startPart, endPart] = dateRange.split('-');
+        const currentYear = new Date().getFullYear();
+        
+        const parseDate = (str) => {
+            const day = parseInt(str.substring(0, 2));
+            const monthStr = str.substring(2);
+            const months = { 'Jan': 0, 'Feb': 1, 'Mar': 2, 'Apr': 3, 'May': 4, 'Jun': 5, 'Jul': 6, 'Aug': 7, 'Sep': 8, 'Oct': 9, 'Nov': 10, 'Dec': 11 };
+            return new Date(currentYear, months[monthStr], day);
+        };
+
+        const start = parseDate(startPart);
+        const end = parseDate(endPart);
+        end.setHours(23, 59, 59, 999);
+        
+        const now = new Date();
+        return now >= start && now <= end;
+    } catch (e) {
+        return false;
+    }
+}
+
+async function runShiftPinTask() {
+    console.log("🛠️ Starting runShiftPinTask...");
+    try {
+        if (!tgClient || !tgClient.connected) {
+            const errMsg = `❌ Failed (Telegram Disconnected at ${new Date().toLocaleTimeString()})`;
+            await db.run("INSERT INTO system_config (config_key, config_value) VALUES ('shift_pin_last_status', ?) ON CONFLICT(config_key) DO UPDATE SET config_value = excluded.config_value", [errMsg]);
+            return;
+        }
+
+        const now = new Date();
+        const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+        const todayName = dayNames[now.getDay()];
+        const dateStr = `${now.getDate()}/${now.getMonth() + 1}`;
+
+        // Find current week roster
+        const weeks = await db.all("SELECT * FROM roster_weeks");
+        let activeWeekId = null;
+        for (const week of weeks) {
+            if (isCurrentWeek(week.date_range)) {
+                activeWeekId = week.id;
+                break;
+            }
+        }
+
+        if (!activeWeekId) {
+            console.warn(`⚠️ No active roster week found matching today's date (${dateStr}).`);
+            return;
+        }
+
+        const shifts = await db.all(
+            "SELECT * FROM roster_shifts WHERE week_id = ? AND day_name = ? ORDER BY row_index ASC", 
+            [activeWeekId, todayName]
+        );
+
+        if (shifts.length === 0) return;
+
+        // Construct shift text
+        const shiftParts = [];
+        shifts.forEach(s => {
+            const pic = s.Ivan ? 'Ivan' : (s.DJ ? 'DJ' : (s.Shawn ? 'Shawn' : null));
+            if (pic && s.time_slot && s.time_slot !== 'OFF' && s.time_slot !== 'Rest Day' && s.time_slot !== 'Backup') {
+                let formattedTime = s.time_slot.replace(/:00/g, '');
+                formattedTime = formattedTime.replace(/10/g, '10am').replace(/19/g, '7pm').replace(/16/g, '4pm').replace(/01/g, '1am').replace(/21/g, '9pm');
+                shiftParts.push(`${pic} ${formattedTime}`);
+            }
+        });
+
+        if (shiftParts.length === 0) return;
+
+        const pinMessage = `📌 ${dateStr} PIC : ${shiftParts.join(' | ')}`;
+        
+        // Target Group from DB
+        let targetConfig = await db.get("SELECT config_value FROM system_config WHERE config_key = 'shift_pin_target_chat'");
+        if (!targetConfig) {
+            const defaultTarget = "CW App Int Group";
+            await db.run("INSERT INTO system_config (config_key, config_value) VALUES (?, ?)", ['shift_pin_target_chat', defaultTarget]);
+            targetConfig = { config_value: defaultTarget };
+        }
+        const targetTitle = targetConfig.config_value;
+
+        const dialogs = await tgClient.getDialogs();
+        const targetChat = dialogs.find(d => d.title && d.title.includes(targetTitle));
+
+        if (!targetChat) {
+            const errMsg = `❌ Group "${targetTitle}" Not Found`;
+            await db.run("INSERT INTO system_config (config_key, config_value) VALUES ('shift_pin_last_status', ?) ON CONFLICT(config_key) DO UPDATE SET config_value = excluded.config_value", [errMsg]);
+            return;
+        }
+
+        const chatId = targetChat.id;
+
+        // Cleanup old pin
+        const oldPin = await db.get("SELECT * FROM tg_pins WHERE chat_title = ?", [targetTitle]);
+        if (oldPin && oldPin.msg_id) {
+            try {
+                await tgClient.invoke(new Api.messages.UpdatePinnedMessage({ peer: oldPin.chat_id, id: parseInt(oldPin.msg_id), unpin: true }));
+                await tgClient.invoke(new Api.messages.DeleteMessages({ peer: oldPin.chat_id, id: [parseInt(oldPin.msg_id)], revoke: true }));
+            } catch (err) {}
+        }
+
+        // Send New
+        const sentMsg = await tgClient.sendMessage(chatId, {
+            message: pinMessage,
+            parseMode: 'markdown',
+            buttons: [
+                new Api.KeyboardButtonUrl({ 
+                    text: "📅 View Full Roster", 
+                    url: process.env.HUB_URL || "https://appsuphub.up.railway.app/" 
+                })
+            ]
+        });
+
+        // Pin New
+        await tgClient.invoke(new Api.messages.UpdatePinnedMessage({ peer: chatId, id: sentMsg.id, unpin: false }));
+
+        // Store new state
+        await db.run(
+            `INSERT INTO tg_pins (chat_title, msg_id, chat_id) VALUES (?, ?, ?)
+             ON CONFLICT(chat_title) DO UPDATE SET msg_id = excluded.msg_id, chat_id = excluded.chat_id`,
+            [targetTitle, sentMsg.id, chatId.toString()]
+        );
+
+        const statusMsg = `✅ Success (Pinned at ${new Date().toLocaleTimeString('en-SG')})`;
+        await db.run("INSERT INTO system_config (config_key, config_value) VALUES ('shift_pin_last_status', ?) ON CONFLICT(config_key) DO UPDATE SET config_value = excluded.config_value", [statusMsg]);
+
+        console.log(`✅ Automated shift pin successful for [${targetTitle}].`);
+
+    } catch (e) {
+        console.error("❌ Critical Failure in runShiftPinTask:", e);
+        const errMsg = `❌ Error: ${e.message.substring(0, 50)}`;
+        await db.run("INSERT INTO system_config (config_key, config_value) VALUES ('shift_pin_last_status', ?) ON CONFLICT(config_key) DO UPDATE SET config_value = excluded.config_value", [errMsg]);
+    }
+}
+
+// API: Config Endpoints
+app.get('/api/config/shift-pin', async (req, res) => {
+    try {
+        const cronStr = (await db.get("SELECT config_value FROM system_config WHERE config_key = 'shift_pin_cron'"))?.config_value || '0 10 * * *';
+        const target = (await db.get("SELECT config_value FROM system_config WHERE config_key = 'shift_pin_target_chat'"))?.config_value || 'CW App Int Group';
+        const status = (await db.get("SELECT config_value FROM system_config WHERE config_key = 'shift_pin_last_status'"))?.config_value || 'Idle';
+        
+        // Parse cron for UI (Assuming format 0 H * * *)
+        const hour = cronStr.split(' ')[1] || '10';
+        res.json({ cron: cronStr, hour, target, lastStatus: status });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/config/shift-pin', async (req, res) => {
+    try {
+        const { hour, target } = req.body;
+        if (!hour || !target) return res.status(400).json({ error: "Missing parameters" });
+        
+        const cronStr = `0 ${hour} * * *`;
+        await db.run("INSERT INTO system_config (config_key, config_value) VALUES ('shift_pin_cron', ?) ON CONFLICT(config_key) DO UPDATE SET config_value = excluded.config_value", [cronStr]);
+        await db.run("INSERT INTO system_config (config_key, config_value) VALUES ('shift_pin_target_chat', ?) ON CONFLICT(config_key) DO UPDATE SET config_value = excluded.config_value", [target]);
+        
+        await setupShiftPinCron();
+        res.json({ success: true, message: "Settings updated and Cron rescheduled." });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
 
 // Fallback to index.html for unknown routes (SPA style)
 app.get('*', (req, res) => {
