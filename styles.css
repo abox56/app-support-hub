@@ -2737,6 +2737,32 @@ body {
 .status-badge.success { color: #00FF88; }
 .status-badge.error { color: #FF3D00; }
 
+.gen-btn {
+    padding: 0.8rem 1.5rem;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.gen-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+    transform: translateY(-2px);
+}
+
+.status-actions {
+    flex-shrink: 0;
+}
+
 .manual-tools-divider {
     margin: 2.5rem 0;
     text-align: center;

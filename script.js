@@ -1518,6 +1518,7 @@ async function saveAutomationSettings() {
     const btn = document.querySelector('button[onclick="saveAutomationSettings()"]');
     
     btn.disabled = true;
+    const originalText = 'Save Schedule';
     btn.textContent = 'Saving...';
 
     try {
@@ -1531,14 +1532,16 @@ async function saveAutomationSettings() {
             btn.textContent = '✅ Saved';
             setTimeout(() => {
                 btn.disabled = false;
-                btn.textContent = 'Save Schedule';
+                btn.textContent = originalText;
             }, 2000);
             loadShiftPinConfig(); // Refresh view
+        } else {
+            throw new Error(data.error || 'Failed to save');
         }
     } catch (e) {
         alert("Save Failed: " + e.message);
         btn.disabled = false;
-        btn.textContent = 'Save Schedule';
+        btn.textContent = originalText;
     }
 }
 
