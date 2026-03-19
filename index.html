@@ -580,27 +580,35 @@
 
                         <div class="automation-hub-footer">
                             <div class="automation-settings-inline">
-                                <label class="details-label">SHIFT PIN TARGET</label>
+                                <label class="details-label">DEFAULT AUTOMATION GROUP</label>
                                 <select id="automation-target" class="glass-input" onchange="saveAutomationSettings()">
                                     <option value="CW App Int Group">CW App Int Group</option>
                                     <option value="CW Apps Support">CW Apps Support</option>
                                     <option value="CIG - CW Support">CIG - CW Support</option>
                                 </select>
                             </div>
-                            <button class="gen-btn" onclick="triggerShiftPinTask()" style="background: var(--purple);">EXECUTE PIN OVERRIDE NOW</button>
+                            <button class="gen-btn" onclick="triggerShiftPinTask()" style="background: var(--purple);" title="Triggers the automated PIC calculation and posts to the group above instantly.">RUN TODAY'S AUTO-PIN NOW</button>
                         </div>
 
                         <div class="manual-tools-divider">
-                            <span>OR SEND MANUAL BROADCAST</span>
+                            <span>OR SEND ONE-OFF MANUAL BROADCAST</span>
                         </div>
 
                         <div class="admin-form manual-broadcast-form">
+                            <div class="form-group" style="margin-bottom: 1rem;">
+                                <label class="details-label">TARGET GROUP</label>
+                                <select id="tg-target-group" class="glass-input">
+                                    <option value="CW App Int Group">CW App Int Group</option>
+                                    <option value="CW Apps Support">CW Apps Support</option>
+                                    <option value="CIG - CW Support">CIG - CW Support</option>
+                                </select>
+                            </div>
                             <div class="form-group">
                                 <div style="display: flex; justify-content: space-between; align-items: center;">
                                     <label class="details-label">Message Content</label>
                                     <button class="gen-btn" onclick="loadPICTemplate()" style="padding: 2px 8px; font-size: 10px; opacity: 0.8;">LOAD PIC TEMPLATE</button>
                                 </div>
-                                <textarea id="tg-broadcast-msg" placeholder="Enter message to pin..."></textarea>
+                                <textarea id="tg-broadcast-msg" placeholder="Type what you want the bot to say and pin..."></textarea>
                             </div>
                             <button class="gen-btn" onclick="testPinMessage()">SEND & PIN BROADCAST</button>
                             <div id="tg-pin-status" style="margin-top: 1rem; display: none; font-size: 0.85rem; padding: 0.8rem; border-radius: 8px;"></div>
