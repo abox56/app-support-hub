@@ -151,6 +151,14 @@ let db;
                     config_key VARCHAR(255) PRIMARY KEY,
                     config_value TEXT
                 );
+                CREATE TABLE IF NOT EXISTS manual_scheduled_tasks (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    group_title VARCHAR(255),
+                    message TEXT,
+                    scheduled_time DATETIME,
+                    status ENUM('pending', 'sent', 'failed') DEFAULT 'pending',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
                 CREATE TABLE IF NOT EXISTS tg_pins (
                     chat_title VARCHAR(255) PRIMARY KEY,
                     msg_id BIGINT,
@@ -769,6 +777,53 @@ async function initTelegram() {
         });
 
         // --- MANUALLY REMOVED DUPLICATE CRON (IT IS NOW HANDLED BY setupShiftPinCron) ---
+
+        // --- MANUALLY SCHEDULED TASKS CHECKER (Every Minute) ---
+        cron.schedule('* * * * *', async () => {
+            try {
+                const now = new Date();
+                const sgNow = new Intl.DateTimeFormat('en-SG', {
+                    timeZone: 'Asia/Singapore',
+                    year: 'numeric', month: '2-digit', day: '2-digit',
+                    hour: '2-digit', minute: '2-digit', second: '2-digit',
+                    hour12: false
+                }).format(now);
+                
+                // Format for MySQL comparison: 'YYYY-MM-DD HH:mm:ss'
+                // sgNow is usually 'DD/MM/YYYY, HH:mm:ss'
+                const [d, t] = sgNow.split(', ');
+                const [dd, mm, yyyy] = d.split('/');
+                const mysqlNow = `${yyyy}-${mm}-${dd} ${t}`;
+
+                const pendingTasks = await db.all(
+                    "SELECT * FROM manual_scheduled_tasks WHERE status = 'pending' AND scheduled_time <= ?", 
+                    [mysqlNow]
+                );
+
+                for (const task of pendingTasks) {
+                    console.log(`⏰ Executing Scheduled Manual Broadcast: ${task.id}`);
+                    try {
+                        const chatId = await findChatIdByTitle(task.group_title);
+                        if (chatId && tgClient && tgClient.connected) {
+                            const sentMsg = await tgClient.sendMessage(chatId, { message: task.message, parseMode: 'markdown' });
+                            await tgClient.invoke(new Api.messages.UpdatePinnedMessage({ peer: chatId, id: sentMsg.id, unpin: false }));
+                            await db.run("UPDATE manual_scheduled_tasks SET status = 'sent' WHERE id = ?", [task.id]);
+                            console.log(`✅ Scheduled task ${task.id} successfully sent.`);
+                        } else {
+                            throw new Error("Chat not found or TG disconnected");
+                        }
+                    } catch (taskErr) {
+                        console.error(`❌ Scheduled task ${task.id} failed:`, taskErr.message);
+                        await db.run("UPDATE manual_scheduled_tasks SET status = 'failed' WHERE id = ?", [task.id]);
+                    }
+                }
+            } catch (err) {
+                console.error("❌ Scheduled Checker Failed:", err.message);
+            }
+        }, {
+            scheduled: true,
+            timezone: "Asia/Singapore"
+        });
 
         // --- TEST ENDPOINT FOR PIN TASK ---
         app.post('/api/test/trigger-pin-task', async (req, res) => {
@@ -1679,6 +1734,30 @@ app.get('/api/automation/preview/:taskId', async (req, res) => {
             return res.json({ content });
         }
         res.status(404).json({ error: "Task not found" });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/manual/schedule', async (req, res) => {
+    try {
+        const { title, message, scheduledTime } = req.body;
+        if (!title || !message) return res.status(400).json({ error: "Missing title or message" });
+
+        if (!scheduledTime) {
+            // IMMEDIATE SEND
+            const chatId = await findChatIdByTitle(title);
+            if (!chatId) return res.status(404).json({ error: "Target group not found by bot." });
+
+            const sentMsg = await tgClient.sendMessage(chatId, { message, parseMode: 'markdown' });
+            await tgClient.invoke(new Api.messages.UpdatePinnedMessage({ peer: chatId, id: sentMsg.id, unpin: false }));
+            return res.json({ success: true, immediate: true });
+        } else {
+            // SCHEDULED SEND
+            await db.run(
+                "INSERT INTO manual_scheduled_tasks (group_title, message, scheduled_time) VALUES (?, ?, ?)",
+                [title, message, scheduledTime]
+            );
+            res.json({ success: true, immediate: false });
+        }
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
