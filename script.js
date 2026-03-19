@@ -1541,8 +1541,11 @@ async function loadAutomationHub(showHidden = null) {
 
         list.innerHTML = tasks.map(task => {
             const cronParts = task.schedule.split(' ');
-            const hour = cronParts[1] ? cronParts[1].padStart(2, '0') : '00';
-            const displaySchedule = `${hour}:00`;
+            const taskHour = cronParts[1] ? cronParts[1].padStart(2, '0') : '10';
+
+            const hourOptions = ['08','09','10','11','12','13','14','15','16','17','18','19','20','21','22'].map(h => 
+                `<option value="${h}" ${h === taskHour ? 'selected' : ''}>${h}:00</option>`
+            ).join('');
 
             return `
                 <tr class="${task.hidden ? 'archived-task-row' : ''}">
@@ -1550,7 +1553,11 @@ async function loadAutomationHub(showHidden = null) {
                         ${task.name}
                         ${task.hidden ? '<span class="status-badge" style="font-size: 8px; margin-left: 5px; opacity: 0.6;">ARCHIVED</span>' : ''}
                     </td>
-                    <td class="mono" style="opacity: 0.8;">${displaySchedule}</td>
+                    <td>
+                        <select class="glass-input" style="padding: 2px 5px; font-size: 0.8rem; width: auto;" onchange="updateTaskSchedule('${task.id}', this.value)">
+                            ${hourOptions}
+                        </select>
+                    </td>
                 <td><span class="status-badge ${task.lastStatus.includes('✅') ? 'success' : (task.lastStatus.includes('❌') ? 'error' : 'busy')}">${task.lastStatus}</span></td>
                 <td>
                     <button class="preview-btn" onclick="previewAutomationTask('${task.id}')">
@@ -1594,6 +1601,18 @@ async function loadAutomationHub(showHidden = null) {
 
     } catch (e) {
         console.error("Hub Load Error:", e);
+    }
+}
+
+async function updateTaskSchedule(taskId, newHour) {
+    try {
+        await apiFetch('/api/automation/schedule', {
+            method: 'POST',
+            body: JSON.stringify({ taskId, hour: newHour })
+        });
+        showToast(`Schedule updated to ${newHour}:00`);
+    } catch (e) {
+        alert("Failed to update schedule: " + e.message);
     }
 }
 
