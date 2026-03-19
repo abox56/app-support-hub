@@ -735,6 +735,9 @@ async function initTelegram() {
 
         // --- SCHEDULED DAILY SUMMARY (10 AM SG) ---
         cron.schedule('0 10 * * *', async () => {
+            const enabled = (await db.get("SELECT config_value FROM system_config WHERE config_key = 'task_summary_enabled'"))?.config_value === '1';
+            if (!enabled) return;
+
             console.log("⏰ 10:00 AM Cron: Generating Daily Summary...");
             try {
                 const TWENTY_FOUR_HOURS_AGO = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
@@ -753,10 +756,12 @@ async function initTelegram() {
                     if (adminId) {
                         await tgClient.sendMessage(adminId, { message: summaryReport, parseMode: 'markdown' });
                         console.log("✅ Daily Summary sent to Admin.");
+                        await dbUpsert('system_config', 'config_key', { config_key: 'task_summary_last_status', config_value: `✅ Success (${new Date().toLocaleTimeString('en-SG')})` });
                     }
                 }
             } catch (err) {
                 console.error("❌ Cron Summary Failed:", err.message);
+                await dbUpsert('system_config', 'config_key', { config_key: 'task_summary_last_status', config_value: `❌ Error (${new Date().toLocaleTimeString('en-SG')})` });
             }
         }, {
             scheduled: true,
@@ -1333,6 +1338,9 @@ async function setupShiftPinCron() {
         }
 
         activePinCronJob = cron.schedule(scheduleRecord.config_value, async () => {
+            const enabled = (await db.get("SELECT config_value FROM system_config WHERE config_key = 'task_shift_pin_enabled'"))?.config_value !== '0';
+            if (!enabled) return;
+            
             console.log(`⏰ Scheduled Automation Trigger [${scheduleRecord.config_value}]: Starting Shift Pin Task...`);
             await runShiftPinTask();
         }, {
@@ -1369,6 +1377,51 @@ function isCurrentWeek(dateRange) {
     } catch (e) {
         return false;
     }
+}
+
+// Helper for Preview Content
+async function generateShiftPinContent() {
+    const now = new Date();
+    const sgNowString = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'Asia/Singapore',
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', second: '2-digit',
+        hour12: false
+    }).format(now);
+    
+    const parts = sgNowString.split(', ');
+    const dateParts = parts[0].split('/');
+    const timeParts = parts[1].split(':');
+    const sgNow = new Date(dateParts[2], dateParts[0]-1, dateParts[1], timeParts[0], timeParts[1], timeParts[2]);
+
+    const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    const todayName = dayNames[sgNow.getDay()];
+    const dateStr = `${sgNow.getDate()}/${sgNow.getMonth() + 1}`;
+
+    const weeks = await db.all("SELECT * FROM roster_weeks");
+    let activeWeekId = null;
+    for (const week of weeks) {
+        if (isCurrentWeek(week.date_range)) {
+            activeWeekId = week.id;
+            break;
+        }
+    }
+    if (!activeWeekId) return `⚠️ No active roster week found for ${dateStr}.`;
+
+    const shifts = await db.all("SELECT * FROM roster_shifts WHERE week_id = ? AND day_name = ? ORDER BY row_index ASC", [activeWeekId, todayName]);
+    if (shifts.length === 0) return `⚠️ No shifts found for ${todayName}.`;
+
+    const shiftParts = [];
+    shifts.forEach(s => {
+        const pic = s.Ivan ? 'Ivan' : (s.DJ ? 'DJ' : (s.Shawn ? 'Shawn' : null));
+        if (pic && s.time_slot && !['OFF', 'Rest Day', 'Backup'].includes(s.time_slot)) {
+            let formattedTime = s.time_slot.replace(/:00/g, '').replace(/10/g, '10am').replace(/19/g, '7pm').replace(/16/g, '4pm').replace(/01/g, '1am').replace(/21/g, '9pm');
+            shiftParts.push(`${pic} ${formattedTime}`);
+        }
+    });
+
+    if (shiftParts.length === 0) return `⚠️ No active PICs found for today.`;
+    return `📌 ${dateStr} PIC : ${shiftParts.join(' | ')}`;
 }
 
 async function dbUpsert(table, matchKey, data) {
@@ -1534,6 +1587,61 @@ app.post('/api/config/shift-pin', async (req, res) => {
         
         await setupShiftPinCron();
         res.json({ success: true, message: "Settings updated and Cron rescheduled." });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- AUTOMATION HUB API ---
+app.get('/api/automation/tasks', async (req, res) => {
+    try {
+        const tasks = [
+            {
+                id: 'shift_pin',
+                name: 'Daily Shift Pinning',
+                schedule: (await db.get("SELECT config_value FROM system_config WHERE config_key = 'shift_pin_cron'"))?.config_value || '0 10 * * *',
+                lastStatus: (await db.get("SELECT config_value FROM system_config WHERE config_key = 'shift_pin_last_status'"))?.config_value || 'Idle',
+                enabled: (await db.get("SELECT config_value FROM system_config WHERE config_key = 'task_shift_pin_enabled'"))?.config_value !== '0'
+            },
+            {
+                id: 'daily_summary',
+                name: 'Daily Activity Summary',
+                schedule: '0 10 * * *', // Summary is fixed for now
+                lastStatus: (await db.get("SELECT config_value FROM system_config WHERE config_key = 'task_summary_last_status'"))?.config_value || 'Idle',
+                enabled: (await db.get("SELECT config_value FROM system_config WHERE config_key = 'task_summary_enabled'"))?.config_value === '1'
+            }
+        ];
+        res.json(tasks);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/automation/toggle', async (req, res) => {
+    try {
+        const { taskId, enabled } = req.body;
+        const configKey = taskId === 'shift_pin' ? 'task_shift_pin_enabled' : 'task_summary_enabled';
+        await dbUpsert('system_config', 'config_key', { config_key: configKey, config_value: enabled ? '1' : '0' });
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/automation/preview/:taskId', async (req, res) => {
+    try {
+        const { taskId } = req.params;
+        if (taskId === 'shift_pin') {
+            const content = await generateShiftPinContent();
+            return res.json({ content });
+        } else if (taskId === 'daily_summary') {
+            // Dry run for summary
+            const TWENTY_FOUR_HOURS_AGO = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+            const incidents = await db.all(`SELECT * FROM incidents WHERE last_update > ?`, [TWENTY_FOUR_HOURS_AGO]);
+            const supportTeam = await db.all(`SELECT * FROM support_members`);
+            const supportStats = [];
+            for (const member of supportTeam) {
+                const attended = await db.get(`SELECT COUNT(*) as count FROM incidents WHERE assigned_to = ? AND last_update > ?`, [member.name, TWENTY_FOUR_HOURS_AGO]);
+                supportStats.push({ name: member.name, total_attended: attended.count });
+            }
+            const content = await generateDailySummaryAI(incidents, supportStats);
+            return res.json({ content });
+        }
+        res.status(404).json({ error: "Task not found" });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 

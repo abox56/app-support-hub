@@ -1487,62 +1487,99 @@ async function loadAdminData() {
         // Init Roster Generator
         initRosterGen(weeks);
 
-        // Load Shift Pin Automation Config
-        loadShiftPinConfig();
+        // Load Automation Hub
+        loadAutomationHub();
     } catch (e) {
         console.error("Failed to load admin data:", e);
     }
 }
 
-async function loadShiftPinConfig() {
+async function loadAutomationHub() {
     try {
-        const res = await apiFetch('/api/config/shift-pin');
-        const data = await res.json();
+        const res = await apiFetch('/api/automation/tasks');
+        const tasks = await res.json();
         
-        const hourSelect = document.getElementById('automation-hour');
-        const targetSelect = document.getElementById('automation-target');
-        const statusSpan = document.getElementById('automation-last-status');
+        const list = document.getElementById('automation-tasks-list');
+        if (!list) return;
 
-        if (hourSelect) hourSelect.value = data.hour;
-        if (targetSelect) targetSelect.value = data.target;
-        if (statusSpan) {
-            statusSpan.textContent = data.lastStatus;
-            statusSpan.className = 'status-badge ' + (data.lastStatus.includes('✅') ? 'success' : (data.lastStatus.includes('❌') ? 'error' : 'busy'));
-        }
-    } catch (e) { console.error("Failed to load shift pin config:", e); }
+        list.innerHTML = tasks.map(task => `
+            <tr>
+                <td style="font-weight: 500;">${task.name}</td>
+                <td class="mono" style="opacity: 0.8;">${task.schedule.replace(/0 /g, '').replace(/ \* \* \*/g, '')}:00</td>
+                <td><span class="status-badge ${task.lastStatus.includes('✅') ? 'success' : (task.lastStatus.includes('❌') ? 'error' : 'busy')}">${task.lastStatus}</span></td>
+                <td>
+                    <button class="preview-btn" onclick="previewAutomationTask('${task.id}')">
+                        <span>👁️</span> PREVIEW
+                    </button>
+                </td>
+                <td>
+                    <label class="switch">
+                        <input type="checkbox" ${task.enabled ? 'checked' : ''} onchange="toggleAutomationTask('${task.id}', this)">
+                        <span class="slider"></span>
+                    </label>
+                </td>
+            </tr>
+        `).join('');
+
+        // Also update Target Group
+        const resPin = await apiFetch('/api/config/shift-pin');
+        const dataPin = await resPin.json();
+        const targetSelect = document.getElementById('automation-target');
+        if (targetSelect) targetSelect.value = dataPin.target;
+
+    } catch (e) {
+        console.error("Hub Load Error:", e);
+    }
+}
+
+async function toggleAutomationTask(taskId, checkbox) {
+    try {
+        await apiFetch('/api/automation/toggle', {
+            method: 'POST',
+            body: JSON.stringify({ taskId, enabled: checkbox.checked })
+        });
+        showToast(`Task ${taskId} ${checkbox.checked ? 'enabled' : 'disabled'}`);
+    } catch (e) {
+        alert("Toggle Failed: " + e.message);
+        checkbox.checked = !checkbox.checked;
+    }
+}
+
+async function previewAutomationTask(taskId) {
+    const modal = document.getElementById('preview-modal');
+    const body = document.getElementById('preview-body');
+    const title = document.getElementById('preview-title');
+    
+    modal.classList.add('active');
+    title.textContent = `Live Preview: ${taskId === 'shift_pin' ? 'Daily Shift Pin' : 'Daily Summary'}`;
+    body.textContent = "⏳ Generating live preview...";
+
+    try {
+        const res = await apiFetch(`/api/automation/preview/${taskId}`);
+        const data = await res.json();
+        body.textContent = data.content || "No content generated.";
+    } catch (e) {
+        body.textContent = "❌ Error: " + e.message;
+    }
+}
+
+function closePreviewModal() {
+    document.getElementById('preview-modal').classList.remove('active');
 }
 
 async function saveAutomationSettings() {
-    const hour = document.getElementById('automation-hour').value;
     const target = document.getElementById('automation-target').value;
-    const btn = document.querySelector('button[onclick="saveAutomationSettings()"]');
+    const resPin = await apiFetch('/api/config/shift-pin');
+    const dataPin = await resPin.json();
     
-    btn.disabled = true;
-    const originalText = 'Save Schedule';
-    btn.textContent = 'Saving...';
-
+    // We keep same hour but update target
     try {
-        const res = await apiFetch('/api/config/shift-pin', {
+        await apiFetch('/api/config/shift-pin', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ hour, target })
+            body: JSON.stringify({ hour: dataPin.hour, target })
         });
-        const data = await res.json();
-        if (data.success) {
-            btn.textContent = '✅ Saved';
-            setTimeout(() => {
-                btn.disabled = false;
-                btn.textContent = originalText;
-            }, 2000);
-            loadShiftPinConfig(); // Refresh view
-        } else {
-            throw new Error(data.error || 'Failed to save');
-        }
-    } catch (e) {
-        alert("Save Failed: " + e.message);
-        btn.disabled = false;
-        btn.textContent = originalText;
-    }
+        showToast("Settings updated");
+    } catch (e) { alert("Save Failed: " + e.message); }
 }
 
 async function removeRosterWeek(id) {

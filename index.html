@@ -553,46 +553,41 @@
                         </div>
                     </div>
 
-                    <!-- Telegram Automation & Tools -->
+                    <!-- Telegram Automation Hub -->
                     <div class="admin-card glass" style="grid-column: 1 / -1;">
                         <div class="admin-card-header">
                             <span class="admin-card-icon">🤖</span>
-                            <h3 class="admin-card-alias">Telegram Automation Controls</h3>
+                            <h3 class="admin-card-alias">Telegram Automation Hub</h3>
                         </div>
-                        <p class="admin-card-desc">Configure when and where the automated daily shift pin occurs.</p>
+                        <p class="admin-card-desc">Monitor and control all automated Telegram tasks.</p>
                         
-                        <div class="automation-setup-grid">
-                            <div class="automation-column">
-                                <label class="details-label">SCHEDULED TIME (DAILY)</label>
-                                <div class="time-selector-row">
-                                    <select id="automation-hour" class="glass-input">
-                                        <option value="09">09:00 AM</option>
-                                        <option value="10" selected>10:00 AM</option>
-                                        <option value="11">11:00 AM</option>
-                                        <option value="12">12:00 PM</option>
-                                        <option value="13">01:00 PM</option>
-                                    </select>
-                                    <button onclick="saveAutomationSettings()" class="action-btn" style="min-width: 120px;">Save Schedule</button>
-                                </div>
-                            </div>
-                            <div class="automation-column">
-                                <label class="details-label">TARGET GROUP</label>
-                                <select id="automation-target" class="glass-input">
+                        <div class="automation-hub-container">
+                            <table class="automation-table">
+                                <thead>
+                                    <tr>
+                                        <th>TASK NAME</th>
+                                        <th>SCHEDULE</th>
+                                        <th>LAST RUN</th>
+                                        <th>CONTENT</th>
+                                        <th>STATUS</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="automation-tasks-list">
+                                    <!-- Dynamic Task Rows -->
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="automation-hub-footer">
+                            <div class="automation-settings-inline">
+                                <label class="details-label">SHIFT PIN TARGET</label>
+                                <select id="automation-target" class="glass-input" onchange="saveAutomationSettings()">
                                     <option value="CW App Int Group">CW App Int Group</option>
                                     <option value="CW Apps Support">CW Apps Support</option>
                                     <option value="CIG - CW Support">CIG - CW Support</option>
                                 </select>
                             </div>
-                        </div>
-
-                        <div class="automation-status-zone glass">
-                            <div class="status-header">
-                                <span class="details-label">LAST RUN MONITOR</span>
-                                <span id="automation-last-status" class="status-badge busy">Loading...</span>
-                            </div>
-                            <div class="status-actions">
-                                <button class="gen-btn" onclick="triggerShiftPinTask()" style="background: var(--purple);">EXECUTE MANUAL OVERRIDE NOW</button>
-                            </div>
+                            <button class="gen-btn" onclick="triggerShiftPinTask()" style="background: var(--purple);">EXECUTE PIN OVERRIDE NOW</button>
                         </div>
 
                         <div class="manual-tools-divider">
@@ -732,6 +727,22 @@
         </div>
     </div>
 
+
+    <!-- Automation Preview Modal -->
+    <div id="preview-modal" class="modal-overlay">
+        <div class="modal-content glass" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3 id="preview-title" class="modal-title">Automation Content Preview</h3>
+                <button class="modal-close" onclick="closePreviewModal()">&times;</button>
+            </div>
+            <div id="preview-body" class="preview-text-box" style="margin-top: 1rem; background: rgba(0,0,0,0.3); padding: 1.5rem; border-radius: 12px; font-family: monospace; white-space: pre-wrap; color: var(--text-primary); border: 1px solid var(--border-color); max-height: 400px; overflow-y: auto;">
+                Loading preview...
+            </div>
+            <div class="modal-footer" style="margin-top: 1.5rem;">
+                <button class="modal-btn primary" onclick="closePreviewModal()">CLOSE PREVIEW</button>
+            </div>
+        </div>
+    </div>
 
     <script src="script.js"></script>
 </body>
