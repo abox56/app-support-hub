@@ -739,43 +739,7 @@ async function initTelegram() {
 
         // --- DYNAMIC CRON INITIALIZATION ---
         await setupShiftPinCron();
-
-        // --- SCHEDULED DAILY SUMMARY (10 AM SG) ---
-        cron.schedule('0 10 * * *', async () => {
-            const enabled = (await db.get("SELECT config_value FROM system_config WHERE config_key = 'task_summary_enabled'"))?.config_value === '1';
-            if (!enabled) return;
-
-            console.log("⏰ 10:00 AM Cron: Generating Daily Summary...");
-            try {
-                const TWENTY_FOUR_HOURS_AGO = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-                const incidents = await db.all(`SELECT * FROM incidents WHERE last_update > ?`, [TWENTY_FOUR_HOURS_AGO]);
-                const supportTeam = await db.all(`SELECT * FROM support_members`);
-                const supportStats = [];
-                for (const member of supportTeam) {
-                    const attended = await db.get(`SELECT COUNT(*) as count FROM incidents WHERE assigned_to = ? AND last_update > ?`, [member.name, TWENTY_FOUR_HOURS_AGO]);
-                    supportStats.push({ name: member.name, total_attended: attended.count });
-                }
-
-                const summaryReport = await generateDailySummaryAI(incidents, supportStats);
-                
-                if (summaryReport && tgClient && tgClient.connected) {
-                    const adminId = process.env.ADMIN_TG_ID;
-                    if (adminId) {
-                        await tgClient.sendMessage(adminId, { message: summaryReport, parseMode: 'markdown' });
-                        console.log("✅ Daily Summary sent to Admin.");
-                        await dbUpsert('system_config', 'config_key', { config_key: 'task_summary_last_status', config_value: `✅ Success (${new Date().toLocaleTimeString('en-SG')})` });
-                    }
-                }
-            } catch (err) {
-                console.error("❌ Cron Summary Failed:", err.message);
-                await dbUpsert('system_config', 'config_key', { config_key: 'task_summary_last_status', config_value: `❌ Error (${new Date().toLocaleTimeString('en-SG')})` });
-            }
-        }, {
-            scheduled: true,
-            timezone: "Asia/Singapore"
-        });
-
-        // --- MANUALLY REMOVED DUPLICATE CRON (IT IS NOW HANDLED BY setupShiftPinCron) ---
+        await setupSummaryCron();
 
         // --- MANUALLY SCHEDULED TASKS CHECKER (Every Minute) ---
         cron.schedule('* * * * *', async () => {
@@ -1373,8 +1337,9 @@ app.post('/api/test/pin-message', async (req, res) => {
 
 
 
-// --- Pin Task Helpers ---
+// --- Automation Helpers ---
 let activePinCronJob = null;
+let activeSummaryCronJob = null;
 
 async function setupShiftPinCron() {
     try {
@@ -1383,7 +1348,6 @@ async function setupShiftPinCron() {
             console.log("🛑 Existing Shift Pin Cron stopped.");
         }
 
-        // 1. Get schedule from DB, fallback to 10 AM
         let scheduleRecord = await db.get("SELECT config_value FROM system_config WHERE config_key = 'shift_pin_cron'");
         if (!scheduleRecord) {
             const defaultCron = '0 10 * * *';
@@ -1404,7 +1368,61 @@ async function setupShiftPinCron() {
 
         console.log(`✅ Shift Pin Automation Scheduled: [${scheduleRecord.config_value}]`);
     } catch (e) {
-        console.error("❌ Failed to setup dynamic cron:", e.message);
+        console.error("❌ Failed to setup dynamic pin cron:", e.message);
+    }
+}
+
+async function setupSummaryCron() {
+    try {
+        if (activeSummaryCronJob) {
+            activeSummaryCronJob.stop();
+            console.log("🛑 Existing Daily Summary Cron stopped.");
+        }
+
+        let scheduleRecord = await db.get("SELECT config_value FROM system_config WHERE config_key = 'task_summary_cron'");
+        if (!scheduleRecord) {
+            const defaultCron = '0 10 * * *';
+            await db.run("INSERT INTO system_config (config_key, config_value) VALUES (?, ?)", ['task_summary_cron', defaultCron]);
+            scheduleRecord = { config_value: defaultCron };
+        }
+
+        activeSummaryCronJob = cron.schedule(scheduleRecord.config_value, async () => {
+            const enabled = (await db.get("SELECT config_value FROM system_config WHERE config_key = 'task_summary_enabled'"))?.config_value === '1';
+            if (!enabled) return;
+
+            console.log(`⏰ Scheduled Automation Trigger [${scheduleRecord.config_value}]: Generating Daily Summary...`);
+            try {
+                const TWENTY_FOUR_HOURS_AGO = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+                const incidents = await db.all(`SELECT * FROM incidents WHERE last_update > ?`, [TWENTY_FOUR_HOURS_AGO]);
+                const supportTeam = await db.all(`SELECT * FROM support_members`);
+                const supportStats = [];
+                for (const member of supportTeam) {
+                    const attended = await db.get(`SELECT COUNT(*) as count FROM incidents WHERE assigned_to = ? AND last_update > ?`, [member.name, TWENTY_FOUR_HOURS_AGO]);
+                    supportStats.push({ name: member.name, total_attended: attended.count });
+                }
+
+                const summaryReport = await generateDailySummaryAI(incidents, supportStats);
+                
+                if (summaryReport && tgClient && tgClient.connected) {
+                    const adminId = process.env.ADMIN_TG_ID;
+                    if (adminId) {
+                        await tgClient.sendMessage(adminId, { message: summaryReport, parseMode: 'markdown' });
+                        console.log("✅ Daily Summary sent to Admin.");
+                        await dbUpsert('system_config', 'config_key', { config_key: 'task_summary_last_status', config_value: `✅ Success (${new Date().toLocaleTimeString('en-SG')})` });
+                    }
+                }
+            } catch (err) {
+                console.error("❌ Cron Summary Task Failed:", err.message);
+                await dbUpsert('system_config', 'config_key', { config_key: 'task_summary_last_status', config_value: `❌ Error (${new Date().toLocaleTimeString('en-SG')})` });
+            }
+        }, {
+            scheduled: true,
+            timezone: "Asia/Singapore"
+        });
+
+        console.log(`✅ Daily Summary Automation Scheduled: [${scheduleRecord.config_value}]`);
+    } catch (e) {
+        console.error("❌ Failed to setup dynamic summary cron:", e.message);
     }
 }
 
@@ -1475,7 +1493,7 @@ async function generateShiftPinContent() {
     });
 
     if (shiftParts.length === 0) return `⚠️ No active PICs found for today.`;
-    return `📌 ${dateStr} PIC : ${shiftParts.join(' | ')}`;
+    return `PIC:${shiftParts.map((p, i) => i === 0 ? p.replace(' ', ` ${dateStr} `) : p).join(' | ')}`;
 }
 
 async function dbUpsert(table, matchKey, data) {
@@ -1556,7 +1574,7 @@ async function runShiftPinTask() {
 
         if (shiftParts.length === 0) return;
 
-        const pinMessage = `📌 ${dateStr} PIC : ${shiftParts.join(' | ')}`;
+        const pinMessage = `PIC:${shiftParts.map((p, i) => i === 0 ? p.replace(' ', ` ${dateStr} `) : p).join(' | ')}`;
         
         // Target Group from DB
         let targetConfig = await db.get("SELECT config_value FROM system_config WHERE config_key = 'shift_pin_target_chat'");
@@ -1703,13 +1721,10 @@ app.post('/api/automation/schedule', async (req, res) => {
         
         if (taskId === 'shift_pin') {
             await setupShiftPinCron();
-        } else {
-            // Need to reschedule daily summary too
-            // Note: This would involve making the summary cron dynamic too
-            // For now, let's keep it simple and just update the DB
-            console.log(`⏰ Schedule for ${taskId} updated to ${cronStr}`);
+        } else if (taskId === 'daily_summary') {
+            await setupSummaryCron();
         }
-        res.json({ success: true, message: `Schedule for ${taskId} updated.` });
+        res.json({ success: true, message: `Schedule for ${taskId} updated to ${cronStr}` });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
