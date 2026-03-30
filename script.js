@@ -1558,6 +1558,9 @@ async function loadAutomationHub(showHidden = null) {
                         ${task.hidden ? '<span class="status-badge" style="font-size: 8px; margin-left: 5px; opacity: 0.6;">ARCHIVED</span>' : ''}
                     </td>
                     <td>
+                        <span class="source-group" style="font-size: 0.75rem;">${task.target}</span>
+                    </td>
+                    <td>
                         <input type="time" class="glass-input" style="padding: 2px 5px; font-size: 0.8rem; width: auto;" value="${timeVal}" onchange="updateTaskSchedule('${task.id}', this.value)">
                     </td>
                 <td><span class="status-badge ${task.lastStatus.includes('✅') ? 'success' : (task.lastStatus.includes('❌') ? 'error' : 'busy')}">${task.lastStatus}</span></td>

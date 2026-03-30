@@ -1676,8 +1676,16 @@ app.get('/api/automation/tasks', async (req, res) => {
             const hidden = (await db.get("SELECT config_value FROM system_config WHERE config_key = ?", [`task_${t.id}_hidden`]))?.config_value === '1';
             if (hidden && !showHidden) continue;
 
+            let target = 'Unknown';
+            if (t.id === 'shift_pin') {
+                target = (await db.get("SELECT config_value FROM system_config WHERE config_key = 'shift_pin_target_chat'"))?.config_value || 'CW App Int Group';
+            } else if (t.id === 'daily_summary') {
+                target = process.env.ADMIN_TG_ID ? `Private Admin (@${process.env.ADMIN_TG_ID})` : 'Unconfigured Admin';
+            }
+
             tasks.push({
                 ...t,
+                target,
                 schedule: (await db.get("SELECT config_value FROM system_config WHERE config_key = ?", [t.id === 'shift_pin' ? 'shift_pin_cron' : 'task_summary_cron']))?.config_value || '0 10 * * *',
                 lastStatus: (await db.get("SELECT config_value FROM system_config WHERE config_key = ?", [t.id === 'shift_pin' ? 'shift_pin_last_status' : 'task_summary_last_status']))?.config_value || 'Idle',
                 enabled: (await db.get("SELECT config_value FROM system_config WHERE config_key = ?", [t.id === 'shift_pin' ? 'task_shift_pin_enabled' : 'task_summary_enabled']))?.config_value === '1',
