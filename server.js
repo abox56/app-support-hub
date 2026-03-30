@@ -1584,25 +1584,34 @@ async function runShiftPinTask() {
             targetConfig = { config_value: defaultTarget };
         }
         const targetTitle = targetConfig.config_value;
+        let chatId = null;
 
-        const dialogs = await tgClient.getDialogs();
-        const targetChat = dialogs.find(d => d.title && d.title.includes(targetTitle));
-
-        if (!targetChat) {
-            const errMsg = `❌ Group "${targetTitle}" Not Found`;
-            await db.run("INSERT INTO system_config (config_key, config_value) VALUES ('shift_pin_last_status', ?) ON CONFLICT(config_key) DO UPDATE SET config_value = excluded.config_value", [errMsg]);
-            return;
+        if (targetTitle === 'ADMIN') {
+            chatId = process.env.ADMIN_TG_ID;
+            if (!chatId) {
+                console.error("❌ ADMIN_TG_ID missing in .env - cannot send to myself");
+                return;
+            }
+        } else {
+            const dialogs = await tgClient.getDialogs();
+            const targetChat = dialogs.find(d => d.title && d.title.includes(targetTitle));
+            if (!targetChat) {
+                const errMsg = `❌ Group "${targetTitle}" Not Found`;
+                await dbUpsert('system_config', 'config_key', { config_key: 'shift_pin_last_status', config_value: errMsg });
+                return;
+            }
+            chatId = targetChat.id;
         }
 
-        const chatId = targetChat.id;
-
-        // Cleanup old pin
-        const oldPin = await db.get("SELECT * FROM tg_pins WHERE chat_title = ?", [targetTitle]);
-        if (oldPin && oldPin.msg_id) {
-            try {
-                await tgClient.invoke(new Api.messages.UpdatePinnedMessage({ peer: oldPin.chat_id, id: parseInt(oldPin.msg_id), unpin: true }));
-                await tgClient.invoke(new Api.messages.DeleteMessages({ peer: oldPin.chat_id, id: [parseInt(oldPin.msg_id)], revoke: true }));
-            } catch (err) {}
+        // Cleanup old pin (skip if sending to admin directly)
+        if (targetTitle !== 'ADMIN') {
+            const oldPin = await db.get("SELECT * FROM tg_pins WHERE chat_title = ?", [targetTitle]);
+            if (oldPin && oldPin.msg_id) {
+                try {
+                    await tgClient.invoke(new Api.messages.UpdatePinnedMessage({ peer: oldPin.chat_id, id: parseInt(oldPin.msg_id), unpin: true }));
+                    await tgClient.invoke(new Api.messages.DeleteMessages({ peer: oldPin.chat_id, id: [parseInt(oldPin.msg_id)], revoke: true }));
+                } catch (err) {}
+            }
         }
 
         // Send New
@@ -1617,16 +1626,16 @@ async function runShiftPinTask() {
             ]
         });
 
-        // Pin New
-        await tgClient.invoke(new Api.messages.UpdatePinnedMessage({ peer: chatId, id: sentMsg.id, unpin: false }));
+        // Pin New (only if group)
+        if (targetTitle !== 'ADMIN') {
+            await tgClient.invoke(new Api.messages.UpdatePinnedMessage({ peer: chatId, id: sentMsg.id, unpin: false }));
+            await dbUpsert('tg_pins', 'chat_title', { chat_title: targetTitle, msg_id: sentMsg.id, chat_id: chatId.toString() });
+        }
 
-        // Store new state
-        await dbUpsert('tg_pins', 'chat_title', { chat_title: targetTitle, msg_id: sentMsg.id, chat_id: chatId.toString() });
-
-        const statusMsg = `✅ Success (Pinned at ${new Date().toLocaleTimeString('en-SG')})`;
+        const statusMsg = `✅ Success (${targetTitle === 'ADMIN' ? 'Sent' : 'Pinned'} at ${new Date().toLocaleTimeString('en-SG')})`;
         await dbUpsert('system_config', 'config_key', { config_key: 'shift_pin_last_status', config_value: statusMsg });
 
-        console.log(`✅ Automated shift pin successful for [${targetTitle}].`);
+        console.log(`✅ Automated shift broadcast successful for [${targetTitle}].`);
 
     } catch (e) {
         console.error("❌ Critical Failure in runShiftPinTask:", e);
