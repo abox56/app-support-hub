@@ -1715,8 +1715,20 @@ app.post('/api/automation/archive', async (req, res) => {
 app.post('/api/automation/schedule', async (req, res) => {
     try {
         const { taskId, hour, minute = 0 } = req.body;
-        const cronStr = `${parseInt(minute)} ${parseInt(hour)} * * *`;
+        
+        // Validation to prevent invalid cron strings
+        const pMin = parseInt(minute);
+        const pHour = parseInt(hour);
+        
+        if (isNaN(pMin) || isNaN(pHour)) {
+            console.error(`❌ Invalid timer received: ${hour}:${minute}`);
+            return res.status(400).json({ error: "Invalid hour or minute format" });
+        }
+
+        const cronStr = `${pMin} ${pHour} * * *`;
         const configKey = taskId === 'shift_pin' ? 'shift_pin_cron' : 'task_summary_cron';
+        
+        console.log(`📡 Saving Schedule: ${configKey} -> ${cronStr}`);
         await dbUpsert('system_config', 'config_key', { config_key: configKey, config_value: cronStr });
         
         if (taskId === 'shift_pin') {
@@ -1724,8 +1736,12 @@ app.post('/api/automation/schedule', async (req, res) => {
         } else if (taskId === 'daily_summary') {
             await setupSummaryCron();
         }
+        
         res.json({ success: true, message: `Schedule for ${taskId} updated to ${cronStr}` });
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) { 
+        console.error("❌ Database Error in schedule update:", e.message);
+        res.status(500).json({ error: e.message }); 
+    }
 });
 
 app.get('/api/automation/preview/:taskId', async (req, res) => {

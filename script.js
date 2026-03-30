@@ -1,3 +1,4 @@
+// v1.1.2 - Automation Hub Fix & Roster Format Update
 let HUB_PASSWORD = localStorage.getItem('hub_access_token') || '';
 let ALL_INCIDENTS = []; // Global cache for detailed view
 let PUBLIC_HOLIDAYS = []; // Cache for calendar highlighting
@@ -6,8 +7,13 @@ let CURRENT_FILTER_MODE = 'all'; // 'all', 'urgent', 'overdue'
 async function apiFetch(url, options = {}) {
     if (!options.headers) options.headers = {};
     options.headers['Authorization'] = HUB_PASSWORD;
+    
+    // Auto-set JSON header for POST
+    if (options.method === 'POST' && !options.headers['Content-Type']) {
+        options.headers['Content-Type'] = 'application/json';
+    }
 
-    const response = await fetch(url, options);
+    const response = await fetch(url, { ...options, cache: 'no-store' });
     if (response.status === 401) {
         localStorage.removeItem('hub_access_token');
         checkAccess();
@@ -1602,13 +1608,22 @@ async function loadAutomationHub(showHidden = null) {
 
 async function updateTaskSchedule(taskId, timeValue) {
     try {
+        console.log(`⏳ Updating ${taskId} to ${timeValue}...`);
         const [hour, minute] = timeValue.split(':');
-        await apiFetch('/api/automation/schedule', {
+        const res = await apiFetch('/api/automation/schedule', {
             method: 'POST',
             body: JSON.stringify({ taskId, hour, minute })
         });
-        showToast(`Schedule updated to ${timeValue}`);
+        
+        if (res.ok) {
+            showToast(`✅ Schedule updated to ${timeValue}`);
+            // Refresh hub data to confirm save
+            setTimeout(() => loadAutomationHub(), 500);
+        } else {
+            throw new Error("Server failed to save schedule");
+        }
     } catch (e) {
+        console.error("Schedule Update Error:", e);
         alert("Failed to update schedule: " + e.message);
     }
 }
