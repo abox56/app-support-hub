@@ -13,6 +13,14 @@ const cron = require('node-cron');
 const app = express();
 app.use(express.json());
 
+// Set global cache policy for APIs
+app.use('/api', (req, res, next) => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    next();
+});
+
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 const primaryModel = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" }); 
@@ -21,7 +29,9 @@ const fallbackModel = genAI.getGenerativeModel({ model: "gemini-flash-latest" })
 
 
 let db;
-(async () => {
+let dbReady = false;
+
+async function initDB() {
     const useMySQL = !!(process.env.MYSQLHOST || process.env.DATABASE_URL || process.env.MYSQL_URL || process.env.MYSQL_PRIVATE_URL);
 
     if (useMySQL) {
@@ -64,9 +74,10 @@ let db;
                     for (let s of statements) {
                         try {
                             await pool.query(s);
-                            console.log(`🛠️ Table/Index created: ${s.substring(0, 40).replace(/\n/g, ' ')}...`);
+                            // console.log(`🛠️ Table/Index created: ${s.substring(0, 40).replace(/\n/g, ' ')}...`);
                         } catch (err) {
-                            if (!err.message.includes("already exists")) {
+                            const msg = err.message.toLowerCase();
+                            if (!msg.includes("already exists") && !msg.includes("duplicate column") && !msg.includes("already exist")) {
                                 console.error(`⚠️ Schema warning: ${err.message}`);
                             }
                         }
@@ -241,7 +252,22 @@ let db;
             driver: sqlite3.Database
         });
 
-        await db.exec(`
+        // Robust SQLite exec sham (splits and handles errors individually)
+        const sqliteExec = async (sql) => {
+            const statements = sql.split(';').filter(s => s.trim().length > 0);
+            for (let s of statements) {
+                try {
+                    await db.run(s);
+                } catch (err) {
+                    const msg = err.message.toLowerCase();
+                    if (!msg.includes("already exists") && !msg.includes("duplicate column") && !msg.includes("already exist")) {
+                        console.error(`⚠️ SQLite Schema warning: ${err.message}`);
+                    }
+                }
+            }
+        };
+
+        await sqliteExec(`
             CREATE TABLE IF NOT EXISTS incidents (
                 id TEXT PRIMARY KEY,
                 first_timestamp TEXT,
@@ -369,7 +395,8 @@ let db;
     } catch (e) {
         console.error("❌ Failed to seed roster:", e.message);
     }
-})();
+    dbReady = true;
+}
 
 const PORT = process.env.PORT || 8000;
 const HUB_PASSWORD = process.env.HUB_PASSWORD || "Cloudway2026!";
@@ -843,7 +870,10 @@ async function initTelegram() {
 }
 
 // Start Telegram in background so server lives
-initTelegram();
+(async () => {
+    await initDB();
+    initTelegram();
+})();
 
 // API: AI Status
 app.get('/api/ai-status', (req, res) => {
@@ -1513,8 +1543,10 @@ async function dbUpsert(table, matchKey, data) {
     
     if (db.isMySQL) {
         const updateStr = keys.map(k => `\`${k}\` = VALUES(\`${k}\`)`).join(', ');
-        const sql = `INSERT INTO ${table} (${keys.map(k => `\`${k}\``).join(', ')}) VALUES (${placeholders}) ON DUPLICATE KEY UPDATE ${updateStr}`;
-        return await db.run(sql, values);
+        const sql = `INSERT INTO \`${table}\` (${keys.map(k => `\`${k}\``).join(', ')}) VALUES (${placeholders}) ON DUPLICATE KEY UPDATE ${updateStr}`;
+        const result = await db.run(sql, values);
+        console.log(`🗄️ MySQL Upsert [${table}]: ${result.changes} rows affected.`);
+        return result;
     } else {
         const updateStr = keys.map(k => `${k} = excluded.${k}`).join(', ');
         const sql = `INSERT INTO ${table} (${keys.join(', ')}) VALUES (${placeholders}) ON CONFLICT(${matchKey}) DO UPDATE SET ${updateStr}`;
