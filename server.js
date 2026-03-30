@@ -1406,8 +1406,18 @@ async function setupSummaryCron() {
                 if (summaryReport && tgClient && tgClient.connected) {
                     const adminId = process.env.ADMIN_TG_ID;
                     if (adminId) {
-                        await tgClient.sendMessage(adminId, { message: summaryReport, parseMode: 'markdown' });
-                        console.log("✅ Daily Summary sent to Admin.");
+                        const targetConfig = await db.get("SELECT config_value FROM system_config WHERE config_key = 'task_summary_target_chat'");
+                        const targetTitle = targetConfig?.config_value || 'ADMIN';
+                        let targetChatId = adminId;
+
+                        if (targetTitle !== 'ADMIN') {
+                            const dialogs = await tgClient.getDialogs();
+                            const targetChat = dialogs.find(d => d.title && d.title.includes(targetTitle));
+                            if (targetChat) targetChatId = targetChat.id;
+                        }
+
+                        await tgClient.sendMessage(targetChatId, { message: summaryReport, parseMode: 'markdown' });
+                        console.log(`✅ Daily Summary sent to [${targetTitle}].`);
                         await dbUpsert('system_config', 'config_key', { config_key: 'task_summary_last_status', config_value: `✅ Success (${new Date().toLocaleTimeString('en-SG')})` });
                     }
                 }
@@ -1689,7 +1699,7 @@ app.get('/api/automation/tasks', async (req, res) => {
             if (t.id === 'shift_pin') {
                 target = (await db.get("SELECT config_value FROM system_config WHERE config_key = 'shift_pin_target_chat'"))?.config_value || 'CW App Int Group';
             } else if (t.id === 'daily_summary') {
-                target = process.env.ADMIN_TG_ID ? `Private Admin (@${process.env.ADMIN_TG_ID})` : 'Unconfigured Admin';
+                target = (await db.get("SELECT config_value FROM system_config WHERE config_key = 'task_summary_target_chat'"))?.config_value || 'ADMIN';
             }
 
             tasks.push({
@@ -1726,6 +1736,15 @@ app.post('/api/automation/archive', async (req, res) => {
             await dbUpsert('system_config', 'config_key', { config_key: enabledKey, config_value: '0' });
         }
         res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/automation/target', async (req, res) => {
+    try {
+        const { taskId, target } = req.body;
+        const configKey = taskId === 'shift_pin' ? 'shift_pin_target_chat' : 'task_summary_target_chat';
+        await dbUpsert('system_config', 'config_key', { config_key: configKey, config_value: target });
+        res.json({ success: true, message: `Target for ${taskId} updated to ${target}` });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 

@@ -1558,7 +1558,12 @@ async function loadAutomationHub(showHidden = null) {
                         ${task.hidden ? '<span class="status-badge" style="font-size: 8px; margin-left: 5px; opacity: 0.6;">ARCHIVED</span>' : ''}
                     </td>
                     <td>
-                        <span class="source-group" style="font-size: 0.75rem;">${task.target}</span>
+                        <select class="glass-input" style="padding: 2px 5px; font-size: 0.75rem; width: auto;" onchange="updateTaskTarget('${task.id}', this.value)">
+                            <option value="ADMIN" ${task.target === 'ADMIN' ? 'selected' : ''}>Send to myself</option>
+                            <option value="CW App Int Group" ${task.target === 'CW App Int Group' ? 'selected' : ''}>CW App Int Group</option>
+                            <option value="CW Apps Support" ${task.target === 'CW Apps Support' ? 'selected' : ''}>CW Apps Support</option>
+                            <option value="CIG - CW Support" ${task.target === 'CIG - CW Support' ? 'selected' : ''}>CIG - CW Support</option>
+                        </select>
                     </td>
                     <td>
                         <input type="time" class="glass-input" style="padding: 2px 5px; font-size: 0.8rem; width: auto;" value="${timeVal}" onchange="updateTaskSchedule('${task.id}', this.value)">
@@ -1606,6 +1611,19 @@ async function loadAutomationHub(showHidden = null) {
 
     } catch (e) {
         console.error("Hub Load Error:", e);
+    }
+}
+
+async function updateTaskTarget(taskId, target) {
+    try {
+        await apiFetch('/api/automation/target', {
+            method: 'POST',
+            body: JSON.stringify({ taskId, target })
+        });
+        showToast(`✅ Target for ${taskId} set to ${target}`);
+        setTimeout(() => loadAutomationHub(), 500);
+    } catch (e) {
+        alert("Failed to update target: " + e.message);
     }
 }
 
