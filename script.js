@@ -1542,10 +1542,8 @@ async function loadAutomationHub(showHidden = null) {
         list.innerHTML = tasks.map(task => {
             const cronParts = task.schedule.split(' ');
             const taskHour = cronParts[1] ? cronParts[1].padStart(2, '0') : '10';
-
-            const hourOptions = ['08','09','10','11','12','13','14','15','16','17','18','19','20','21','22'].map(h => 
-                `<option value="${h}" ${h === taskHour ? 'selected' : ''}>${h}:00</option>`
-            ).join('');
+            const taskMin = cronParts[0] ? cronParts[0].padStart(2, '0') : '00';
+            const timeVal = `${taskHour}:${taskMin}`;
 
             return `
                 <tr class="${task.hidden ? 'archived-task-row' : ''}">
@@ -1554,9 +1552,7 @@ async function loadAutomationHub(showHidden = null) {
                         ${task.hidden ? '<span class="status-badge" style="font-size: 8px; margin-left: 5px; opacity: 0.6;">ARCHIVED</span>' : ''}
                     </td>
                     <td>
-                        <select class="glass-input" style="padding: 2px 5px; font-size: 0.8rem; width: auto;" onchange="updateTaskSchedule('${task.id}', this.value)">
-                            ${hourOptions}
-                        </select>
+                        <input type="time" class="glass-input" style="padding: 2px 5px; font-size: 0.8rem; width: auto;" value="${timeVal}" onchange="updateTaskSchedule('${task.id}', this.value)">
                     </td>
                 <td><span class="status-badge ${task.lastStatus.includes('✅') ? 'success' : (task.lastStatus.includes('❌') ? 'error' : 'busy')}">${task.lastStatus}</span></td>
                 <td>
@@ -1604,13 +1600,14 @@ async function loadAutomationHub(showHidden = null) {
     }
 }
 
-async function updateTaskSchedule(taskId, newHour) {
+async function updateTaskSchedule(taskId, timeValue) {
     try {
+        const [hour, minute] = timeValue.split(':');
         await apiFetch('/api/automation/schedule', {
             method: 'POST',
-            body: JSON.stringify({ taskId, hour: newHour })
+            body: JSON.stringify({ taskId, hour, minute })
         });
-        showToast(`Schedule updated to ${newHour}:00`);
+        showToast(`Schedule updated to ${timeValue}`);
     } catch (e) {
         alert("Failed to update schedule: " + e.message);
     }

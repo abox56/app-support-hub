@@ -1714,8 +1714,8 @@ app.post('/api/automation/archive', async (req, res) => {
 
 app.post('/api/automation/schedule', async (req, res) => {
     try {
-        const { taskId, hour } = req.body;
-        const cronStr = `0 ${hour} * * *`;
+        const { taskId, hour, minute = 0 } = req.body;
+        const cronStr = `${parseInt(minute)} ${parseInt(hour)} * * *`;
         const configKey = taskId === 'shift_pin' ? 'shift_pin_cron' : 'task_summary_cron';
         await dbUpsert('system_config', 'config_key', { config_key: configKey, config_value: cronStr });
         
