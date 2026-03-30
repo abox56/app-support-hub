@@ -498,7 +498,7 @@ async function generateHandoverAI(incidents, picName) {
     }
 
     const dateStr = new Date().toLocaleDateString('en-SG', { day: '2-digit', month: 'short', year: 'numeric' });
-    const timeStr = new Date().toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit' });
+    const timeStr = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kuala_Lumpur' });
 
     const incidentList = incidents.map(inc => {
         const count = inc.updates ? inc.updates.length : 1;
@@ -1448,12 +1448,12 @@ async function setupSummaryCron() {
 
                         await tgClient.sendMessage(targetChatId, { message: summaryReport, parseMode: 'markdown' });
                         console.log(`✅ Daily Summary sent to [${targetTitle}].`);
-                        await dbUpsert('system_config', 'config_key', { config_key: 'task_summary_last_status', config_value: `✅ Success (${new Date().toLocaleTimeString('en-SG')})` });
+                        await dbUpsert('system_config', 'config_key', { config_key: 'task_summary_last_status', config_value: `✅ Success (${new Date().toLocaleTimeString('en-GB', { timeZone: 'Asia/Kuala_Lumpur' })})` });
                     }
                 }
             } catch (err) {
                 console.error("❌ Cron Summary Task Failed:", err.message);
-                await dbUpsert('system_config', 'config_key', { config_key: 'task_summary_last_status', config_value: `❌ Error (${new Date().toLocaleTimeString('en-SG')})` });
+                await dbUpsert('system_config', 'config_key', { config_key: 'task_summary_last_status', config_value: `❌ Error (${new Date().toLocaleTimeString('en-GB', { timeZone: 'Asia/Kuala_Lumpur' })})` });
             }
         }, {
             scheduled: true,
@@ -1674,7 +1674,7 @@ async function runShiftPinTask() {
             await dbUpsert('tg_pins', 'chat_title', { chat_title: targetTitle, msg_id: sentMsg.id, chat_id: chatId.toString() });
         }
 
-        const statusMsg = `✅ Success (${targetTitle === 'ADMIN' ? 'Sent' : 'Pinned'} at ${new Date().toLocaleTimeString('en-SG')})`;
+        const statusMsg = `✅ Success (${targetTitle === 'ADMIN' ? 'Sent' : 'Pinned'} at ${new Date().toLocaleTimeString('en-GB', { timeZone: 'Asia/Kuala_Lumpur' })})`;
         await dbUpsert('system_config', 'config_key', { config_key: 'shift_pin_last_status', config_value: statusMsg });
 
         console.log(`✅ Automated shift broadcast successful for [${targetTitle}].`);
