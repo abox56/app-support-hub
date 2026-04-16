@@ -490,10 +490,6 @@ function renderWeek(index) {
             if (shift || labelTitle === 'Remark') {
                 let content = '';
                 
-                // DJ: AL REMARK OVERRIDE: Move to Remark row
-                if (labelTitle === 'Remark' && (day === 'Thursday' || day === 'Friday') && week.title.includes('Week 1')) {
-                    content += `<span class="away-badge">DJ: AL</span>`;
-                }
 
                 if (shift) {
                     if (day === 'Wednesday' && shift.note === 'Weekly Sync Meeting') {
