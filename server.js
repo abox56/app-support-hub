@@ -615,25 +615,50 @@ async function addTelegramIncident(groupTitle, senderName, content, msgId, chatI
 
     const analysis = await analyzeMessageAI(content);
     
+    // ---------------------------------------------------------
+    // SEMANTIC THREADING (Enabled after 6:30 PM April 20 2026)
+    // ---------------------------------------------------------
+    const THREADING_START = new Date("2026-04-20T18:30:00").getTime();
+    let clusterId = null;
+
+    if (now.getTime() >= THREADING_START && !analysis.isNoise) {
+        try {
+            // Get all Unresolved incidents in the last 24 hours to check for semantic match
+            const TWENTY_FOUR_HOURS_AGO = new Date(now.getTime() - (24 * 60 * 60 * 1000)).toISOString();
+            const activeIncidents = await db.all(
+                `SELECT id, category, ai_summary, main_content FROM incidents 
+                 WHERE status != 'Resolved' AND last_update > ? AND source = ?`,
+                [TWENTY_FOUR_HOURS_AGO, groupTitle]
+            );
+
+            if (activeIncidents.length > 0) {
+                clusterId = await findSemanticMatch(content, activeIncidents);
+            }
+        } catch (threadErr) {
+            console.error("Semantic Threading Error:", threadErr.message);
+        }
+    }
+
+    // Fallback to basic window-based clustering if semantic threading found nothing or is disabled
+    if (!clusterId && !analysis.isNoise) {
+        const WINDOW_MINUTES = 10;
+        const WINDOW_AGO = new Date(now.getTime() - (WINDOW_MINUTES * 60 * 1000)).toISOString();
+        const basicCluster = await db.get(
+            `SELECT id FROM incidents 
+             WHERE category = ? AND last_update > ? AND status != 'Resolved' AND source = ?
+             ORDER BY last_update DESC LIMIT 1`,
+            [analysis.category, WINDOW_AGO, groupTitle]
+        );
+        if (basicCluster) clusterId = basicCluster.id;
+    }
+
     // Insert into message_analysis_logs (keeping raw log)
     try {
         await db.run(
             `INSERT INTO message_analysis_logs 
             (msg_id, chat_id, chat_title, sender, content, timestamp, ai_category, ai_summary, is_noise, confidence, engine) 
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [
-                msgId, 
-                chatId ? chatId.toString() : null, 
-                groupTitle, 
-                senderName, 
-                content, 
-                now.toISOString(), 
-                analysis.category, 
-                analysis.summary || null, 
-                analysis.isNoise || false, 
-                analysis.confidence || 0, 
-                analysis.engine
-            ]
+            [msgId, chatId ? chatId.toString() : null, groupTitle, senderName, content, now.toISOString(), analysis.category, analysis.summary || null, analysis.isNoise || false, analysis.confidence || 0, analysis.engine]
         );
     } catch (e) {
         console.error("Failed to insert into message_analysis_logs:", e.message);
@@ -645,30 +670,19 @@ async function addTelegramIncident(groupTitle, senderName, content, msgId, chatI
         console.log(`📠 Silent Logging (Noise): ${content.substring(0, 30)}...`);
     }
 
-    const WINDOW_MINUTES = 10;
-    const WINDOW_AGO = new Date(now.getTime() - (WINDOW_MINUTES * 60 * 1000)).toISOString();
-
-    // Clustering logic (only for non-support or non-attending messages)
-    const cluster = await db.get(
-        `SELECT id FROM incidents 
-         WHERE category = ? AND last_update > ? AND status != 'Resolved'
-         ORDER BY last_update DESC LIMIT 1`,
-        [finalCategory, WINDOW_AGO]
-    );
-
     try {
-        if (cluster) {
+        if (clusterId) {
             // Update existing cluster
             await db.run(
                 `UPDATE incidents SET last_update = ?, main_content = ? WHERE id = ?`,
-                [now.toISOString(), content, cluster.id]
+                [now.toISOString(), content, clusterId]
             );
             // Save detail to updates table
             await db.run(
                 `INSERT INTO incident_updates (incident_id, timestamp, sender, content, msg_id, chat_id, is_support) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-                [cluster.id, now.toISOString(), senderName, content, msgId, chatId ? chatId.toString() : null, isSupport ? 1 : 0]
+                [clusterId, now.toISOString(), senderName, content, msgId, chatId ? chatId.toString() : null, isSupport ? 1 : 0]
             );
-            console.log(`🔗 Clustered with incident [${cluster.id}] (${finalCategory})`);
+            console.log(`🔗 Clustered [SEMANTIC/WINDOW] with incident [${clusterId}] (${finalCategory})`);
         } else {
             // Create new incident
             const id = Date.now().toString();
@@ -690,6 +704,42 @@ async function addTelegramIncident(groupTitle, senderName, content, msgId, chatI
         await db.run(`DELETE FROM incidents WHERE last_update < ?`, [NINETY_DAYS_AGO]);
     } catch (e) {
         console.error("Database Error in addTelegramIncident:", e.message);
+    }
+}
+
+/**
+ * Uses Gemini to determine if a new message belongs to an existing active incident thread.
+ */
+async function findSemanticMatch(newContent, activeIncidents) {
+    try {
+        const incidentsList = activeIncidents.map(i => `ID: ${i.id}, Summary: ${i.ai_summary}, Last Message: ${i.main_content.substring(0, 100)}`).join('\n---\n');
+        
+        const prompt = `
+        You are a thread grouping assistant for a technical support hub. 
+        A new message has arrived: "${newContent}"
+        
+        Here are the currently active (unresolved) incidents:
+        ${incidentsList}
+        
+        Compare the new message with the active incidents. 
+        If the new message is a continuation, reply, or update to one of the incidents (same user, same issue, same ticket ID), return ONLY the Incident ID.
+        If it is a completely new issue, return ONLY the word "NEW".
+        
+        Confidence must be high. If unsure, return "NEW".
+        Only return the ID or "NEW".
+        `;
+
+        const result = await fallbackModel.generateContent(prompt);
+        const response = (await result.response).text().trim().replace(/['"]/g, '');
+        
+        if (response !== "NEW") {
+            const found = activeIncidents.find(i => i.id === response);
+            return found ? found.id : null;
+        }
+        return null;
+    } catch (e) {
+        console.error("Semantic Comparison Failed:", e.message);
+        return null;
     }
 }
 
