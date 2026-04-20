@@ -742,18 +742,6 @@ async function initTimeline() {
         const activeCount = incidents.filter(i => i.status !== 'Resolved').length;
         if (countElement) countElement.textContent = activeCount;
 
-        // Pulse Alert Logic: Check for recent [USER_SUPPORT]
-        const mostRecentUserSupport = incidents.find(i => i.category === '[USER_SUPPORT]' && i.status === 'Captured');
-        const pulseZone = document.getElementById('pulse-alert');
-        if (pulseZone) {
-            if (mostRecentUserSupport) {
-                pulseZone.style.display = 'block';
-                pulseZone.style.cursor = 'pointer';
-                pulseZone.onclick = () => filterUrgent();
-            } else {
-                pulseZone.style.display = 'none';
-            }
-        }
 
         // Overdue Alert Banner Logic
         const now = new Date();
