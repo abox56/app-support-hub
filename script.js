@@ -162,33 +162,12 @@ document.addEventListener('DOMContentLoaded', () => {
     loadAdminData();
 
     // Maintenance
-    setInterval(checkPulse, 30000); // Check every 30s
     
     // Poll for new incidents every 30 seconds
     setInterval(initTimeline, 30000);
     setInterval(checkTGStatus, 60000); // 1 min check for TG
 });
 
-function checkPulse() {
-    const now = new Date();
-    const hr = now.getHours();
-    const mn = now.getMinutes();
-    
-    // 10:25 AM Pulse Reminder
-    if (hr === 10 && mn === 25) {
-        const pulseAlert = document.getElementById('pulse-alert');
-        if (pulseAlert) {
-            pulseAlert.querySelector('.alert-text').textContent = "⚠️ REMINDER (Ivan): 10:30 AM Pulse Check-in required.";
-            pulseAlert.style.display = 'block';
-        }
-    } else if (hr === 10 && mn >= 30 && mn < 45) {
-        const pulseAlert = document.getElementById('pulse-alert');
-        if (pulseAlert) {
-            pulseAlert.querySelector('.alert-text').textContent = "🚀 PULSE ACTIVE: Ivan locked as Lead PIC.";
-            pulseAlert.style.display = 'block';
-        }
-    }
-}
 
 async function checkAIStatus() {
     try {
