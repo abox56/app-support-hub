@@ -12,6 +12,7 @@ const cron = require('node-cron');
 
 const app = express();
 app.use(express.json());
+app.use(express.static(path.join(__dirname)));
 
 // Set global cache policy for APIs
 app.use('/api', (req, res, next) => {
