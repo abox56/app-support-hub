@@ -2044,3 +2044,93 @@ async function triggerShiftPinTask() {
         statusDiv.textContent = `❌ API Error: ${e.message}`;
     }
 }
+
+// -------------------------------------
+// AI CHAT TERMINAL LOGIC
+// -------------------------------------
+
+function toggleAIChat() {
+    const window = document.getElementById('ai-chat-window');
+    if (window) {
+        window.classList.toggle('active');
+        if (window.classList.contains('active')) {
+            document.getElementById('ai-chat-input')?.focus();
+        }
+    }
+}
+
+function handleChatKey(e) {
+    if (e.key === 'Enter') {
+        sendAIChat();
+    }
+}
+
+async function sendAIChat() {
+    const input = document.getElementById('ai-chat-input');
+    const sendBtn = document.getElementById('ai-chat-send-btn');
+    const message = input.value.trim();
+    
+    if (!message) return;
+    
+    // Add User Message
+    appendChatMessage('user', message);
+    input.value = '';
+    
+    // Add Typing Indicator
+    const typingId = 'typing-' + Date.now();
+    const messagesContainer = document.getElementById('ai-chat-messages');
+    const typingDiv = document.createElement('div');
+    typingDiv.id = typingId;
+    typingDiv.className = 'typing-indicator';
+    typingDiv.innerHTML = '<div class="dot"></div><div class="dot"></div><div class="dot"></div>';
+    messagesContainer.appendChild(typingDiv);
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    
+    input.disabled = true;
+    sendBtn.disabled = true;
+    
+    try {
+        const response = await apiFetch('/api/chat', {
+            method: 'POST',
+            body: JSON.stringify({ message })
+        });
+        
+        const data = await response.json();
+        
+        // Remove Typing Indicator
+        document.getElementById(typingId)?.remove();
+        
+        if (data.response) {
+            appendChatMessage('ai', data.response);
+        } else {
+            appendChatMessage('ai', "I'm sorry, I couldn't process that request.");
+        }
+        
+    } catch (err) {
+        document.getElementById(typingId)?.remove();
+        appendChatMessage('ai', "⚠️ Connection error: " + err.message);
+    } finally {
+        input.disabled = false;
+        sendBtn.disabled = false;
+        input.focus();
+    }
+}
+
+function appendChatMessage(sender, text) {
+    const container = document.getElementById('ai-chat-messages');
+    if (!container) return;
+    
+    const msgDiv = document.createElement('div');
+    msgDiv.className = `chat-message message-${sender}`;
+    
+    // Simple markdown-ish conversion for newlines and code blocks
+    let formattedText = text
+        .replace(/\n/g, '<br/>')
+        .replace(/`([^`]+)`/g, '<code>$1</code>');
+    
+    msgDiv.innerHTML = formattedText;
+    container.appendChild(msgDiv);
+    
+    // Smooth scroll to bottom
+    container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+}

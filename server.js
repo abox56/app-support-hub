@@ -692,8 +692,84 @@ async function addTelegramIncident(groupTitle, senderName, content, msgId, chatI
     }
 }
 
-// Serve static files from the current directory
-app.use(express.static(path.join(__dirname)));
+// --- AI CHATBOT TERMINAL ---
+app.post('/api/chat', async (req, res) => {
+    const { message } = req.body;
+    if (!message) return res.status(400).json({ error: "Message is required" });
+
+    if (!process.env.GEMINI_API_KEY) {
+        return res.json({ response: "AI Service is not configured. Please add GEMINI_API_KEY to your environment." });
+    }
+
+    const schemaInfo = `
+    You are the Cloudway Support Hub Assistant. You have access to a database with the following tables:
+    
+    1. incidents: id, first_timestamp, last_update, category, main_content, ai_summary, status, assigned_to, source, duration_minutes.
+       Categories: [USER_SUPPORT], [PROVIDER_ALERTS], [SYSTEM_LOGS], [NOISE].
+       Status: Captured, Attended, Resolved.
+    
+    2. incident_updates: id, incident_id, timestamp, sender, content, msg_id, chat_id, is_support.
+    
+    3. message_analysis_logs: id, msg_id, chat_id, chat_title, sender, content, timestamp, ai_category, ai_summary, is_noise, confidence, engine.
+    
+    4. roster_weeks: id, title, date_range. Example title: 'Mar26 Week 1'.
+    
+    5. roster_shifts: id, week_id, day_name, row_index, time_slot, Ivan, DJ, Shawn, note, swapped.
+       row_index: 0 (Early 10am), 1 (Night 4pm), 2 (Backup), 3 (Remark).
+    
+    6. support_members: user_id, name.
+    
+    7. public_holidays: id, holiday_date, name, is_office_closed.
+    
+    INSTRUCTIONS:
+    - If the user asks for data, return a JSON object with "sql" field containing a valid SQL query and "thinking" field explaining why.
+    - If the user asks a general question, return a JSON object with "response" field.
+    - If you generated SQL, I will execute it and give you the results in the next turn (conceptually, but here we will do it in one pass for simplicity or return results if we can).
+    - Actually, for this implementation, if you think you need data, output: {"sql": "SELECT ..."}
+    - Always use LIMIT to prevent massive results.
+    - Current SGT Time: ${new Date().toISOString()}
+    `;
+
+    try {
+        // Step 1: Tell Gemini to generate SQL if needed
+        const initialPrompt = `
+        System Context: ${schemaInfo}
+        User Query: "${message}"
+        
+        If this query requires database data, return exactly: {"sql": "YOUR_SQL_QUERY", "thinking": "Explanation"}
+        If it is a greeting or general help, return exactly: {"response": "Your friendly response"}
+        `;
+
+        const result = await primaryModel.generateContent(initialPrompt);
+        let text = (await result.response).text().trim();
+        if (text.includes("```")) text = text.split("```")[1].replace(/^json/, "").trim();
+        
+        const data = JSON.parse(text);
+        
+        if (data.sql) {
+            console.log("🤖 AI generated SQL:", data.sql);
+            const dbResults = await db.all(data.sql);
+            
+            // Step 2: Feed results back to Gemini for natural language answer
+            const finalPrompt = `
+            System Context: ${schemaInfo}
+            User Query: "${message}"
+            Database Results: ${JSON.stringify(dbResults)}
+            
+            Generate a concise, professional, and helpful response based on these results. Use Markdown for formatting.
+            `;
+            
+            const finalResult = await primaryModel.generateContent(finalPrompt);
+            const finalResponse = (await finalResult.response).text();
+            return res.json({ response: finalResponse, sql: data.sql });
+        } else {
+            return res.json({ response: data.response });
+        }
+    } catch (e) {
+        console.error("AI Chat Error:", e.message);
+        res.status(500).json({ error: "AI Assistant failed to process your request." });
+    }
+});
 
 async function initTelegram() {
     try {
