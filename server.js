@@ -705,70 +705,86 @@ app.post('/api/chat', async (req, res) => {
     const schemaInfo = `
     You are the Cloudway Support Hub Assistant. You have access to a database with the following tables:
     
-    1. incidents: id, first_timestamp, last_update, category, main_content, ai_summary, status, assigned_to, source, duration_minutes.
-       Categories: [USER_SUPPORT], [PROVIDER_ALERTS], [SYSTEM_LOGS], [NOISE].
-       Status: Captured, Attended, Resolved.
-    
-    2. incident_updates: id, incident_id, timestamp, sender, content, msg_id, chat_id, is_support.
-    
-    3. message_analysis_logs: id, msg_id, chat_id, chat_title, sender, content, timestamp, ai_category, ai_summary, is_noise, confidence, engine.
-    
-    4. roster_weeks: id, title, date_range. Example title: 'Mar26 Week 1'.
-    
-    5. roster_shifts: id, week_id, day_name, row_index, time_slot, Ivan, DJ, Shawn, note, swapped.
-       row_index: 0 (Early 10am), 1 (Night 4pm), 2 (Backup), 3 (Remark).
-    
-    6. support_members: user_id, name.
-    
-    7. public_holidays: id, holiday_date, name, is_office_closed.
-    
-    INSTRUCTIONS:
-    - If the user asks for data, return a JSON object with "sql" field containing a valid SQL query and "thinking" field explaining why.
-    - If the user asks a general question, return a JSON object with "response" field.
-    - If you generated SQL, I will execute it and give you the results in the next turn (conceptually, but here we will do it in one pass for simplicity or return results if we can).
-    - Actually, for this implementation, if you think you need data, output: {"sql": "SELECT ..."}
-    - Always use LIMIT to prevent massive results.
-    - Current SGT Time: ${new Date().toISOString()}
+    1. incidents: id, first_timestamp, last_update, category, main_content, ai_summary, status, assigned_to, source.
+    2. incident_updates: id, incident_id, timestamp, sender, content, is_support.
+    3. message_analysis_logs: id, msg_id, chat_id, chat_title, sender, content, timestamp, ai_category, ai_summary.
+    4. roster_weeks/shifts: For scheduling and PIC info.
+    5. support_members/public_holidays: For team and holiday context.
+
+    CRITICAL TERMINOLOGY (DO NOT AUTO-CORRECT):
+    - "Cashout": Relates to user withdrawals or payment gateway issues.
+    - "SMI": Our internal monitoring tool.
+    - "Provider": External game/service vendors (UFABET, Evolution, etc.)
+    - "Pulse": Urgent alert system.
+
+    Current SGT Time: ${new Date().toLocaleString('en-SG', { timeZone: 'Asia/Singapore' })}
     `;
 
     try {
-        // Step 1: Tell Gemini to generate SQL if needed
-        const initialPrompt = `
+        // STEP 1: Determine Strategy (Search or General)
+        const strategyPrompt = `
         System Context: ${schemaInfo}
         User Query: "${message}"
         
-        If this query requires database data, return exactly: {"sql": "YOUR_SQL_QUERY", "thinking": "Explanation"}
-        If it is a greeting or general help, return exactly: {"response": "Your friendly response"}
+        If this requires searching data (incidents, logs, rosters), return a JSON object with:
+        {"sql": "Valid SQLite/MySQL query. Use LIMIT 10.", "reason": "Why this query?"}
+        
+        If this is a greeting or general help, return:
+        {"response": "Helpful text answer"}
+
+        Return ONLY the JSON block.
         `;
 
-        const result = await primaryModel.generateContent(initialPrompt);
+        const result = await primaryModel.generateContent(strategyPrompt);
         let text = (await result.response).text().trim();
-        if (text.includes("```")) text = text.split("```")[1].replace(/^json/, "").trim();
+        
+        // Clean JSON formatting from AI
+        if (text.includes("```")) {
+            text = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/)[1];
+        } else if (text.includes("{")) {
+            text = text.substring(text.indexOf("{"), text.lastIndexOf("}") + 1);
+        }
         
         const data = JSON.parse(text);
         
         if (data.sql) {
-            console.log("🤖 AI generated SQL:", data.sql);
-            const dbResults = await db.all(data.sql);
-            
-            // Step 2: Feed results back to Gemini for natural language answer
+            console.log("🤖 AI Search Strategy:", data.sql);
+            let dbResults = [];
+            try {
+                dbResults = await db.all(data.sql);
+            } catch (sqlErr) {
+                console.error("SQL Error:", sqlErr.message);
+                // Fallback: If SQL fails, we try a basic search
+                dbResults = [{ error: "The generated search query was invalid. Summarize this situation." }];
+            }
+
+            // STEP 2: Generate Final Natural Language Summary
             const finalPrompt = `
-            System Context: ${schemaInfo}
+            ${schemaInfo}
             User Query: "${message}"
+            SQL Used: \`${data.sql}\`
             Database Results: ${JSON.stringify(dbResults)}
             
-            Generate a concise, professional, and helpful response based on these results. Use Markdown for formatting.
+            INSTRUCTIONS:
+            1. Summarize the timeline or data found above into a natural, professional response.
+            2. If results are empty, explain that you found no records for that specific term.
+            3. NEVER show the SQL or JSON in your final answer.
+            4. Use Markdown bullets or bold text for readability.
             `;
             
             const finalResult = await primaryModel.generateContent(finalPrompt);
             const finalResponse = (await finalResult.response).text();
-            return res.json({ response: finalResponse, sql: data.sql });
+            
+            return res.json({ 
+                response: finalResponse, 
+                debug_sql: data.sql // Kept in background for dev logs
+            });
         } else {
             return res.json({ response: data.response });
         }
     } catch (e) {
         console.error("AI Chat Error:", e.message);
-        res.status(500).json({ error: "AI Assistant failed to process your request." });
+        res.status(500).json({ error: "The AI Assistant encountered an error processing your request." });
     }
 });
 
